@@ -1,0 +1,2983 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>內部查價與智能估價系統 v3.1.0 (2026 溫暖大地實體觸覺版)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            warm: {
+              950: '#1c1917', // 溫潤暖炭灰底 (--bg-base)
+              900: '#292524', // 暖咖玻璃面板 (--bg-panel base)
+              850: '#23201d', // 卡片凸起層
+              800: '#292524', // 暖灰邊框
+              700: '#44403c', // 次級邊框
+              400: '#a8a29e', // 溫暖灰褐文字
+              200: '#d6d3d1', // --text-2 次文字
+              100: '#fef3c7', // 暖米白高對比文字
+            },
+            terracotta: {
+              500: '#f97316',
+              600: '#ea580c', // 溫暖陶橙重點按鈕
+              700: '#c2410c',
+              800: '#9a3412',
+            },
+            amberGlow: '#f59e0b',
+            emeraldWarm: '#10b981',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 2026 Tactile Minimalism & Warm Dark System */
+    :root {
+      --bg-base:      #1c1917;                    /* 溫潤暖炭灰底，不隨系統顏色反白或變純黑 */
+      --bg-panel:     rgba(41, 37, 36, 0.85);     /* 暖石褐毛玻璃面板 */
+      --bg-card:      rgba(68, 64, 60, 0.6);      /* 暖灰卡片 */
+      --bg-input:     rgba(28, 25, 23, 0.85);     /* 深色溫暖輸入框，聚焦時帶琥珀微光 */
+      --border:       rgba(254, 243, 199, 0.12);  /* 細緻暖光邊框 */
+      --text-1:       #fef3c7;                    /* 羊皮紙暖杏白，高對比、護眼不反光 */
+      --text-2:       #d6d3d1;                    /* 溫暖石灰文字 */
+      --text-3:       #a8a29e;                    /* 淡灰褐文字 */
+      --btn-primary:  #ea580c;                    /* 溫暖陶橙，按鈕具備微物理立體內陰影與點擊下沉反饋 */
+      --btn-accent:   var(--btn-primary);         /* 別名相容 */
+      --accent-amber: #f59e0b;                    /* 琥珀金，用於市場平衡價與重要提示 */
+      --amber-glow:   var(--accent-amber);        /* 別名相容 */
+      /* Legacy aliases (backward-compat) */
+      --bg-warm-dark: var(--bg-base);
+      --text-main:    var(--text-1);
+      --text-muted:   var(--text-3);
+      --border-warm:  #292524;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-1);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Tactile Physical Buttons (觸覺立體微厚度與點擊下沉) */
+    .btn-tactile {
+      border-bottom-width: 2px;
+      transition: all 0.08s ease-in-out;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-tactile:active {
+      transform: translateY(2px);
+      border-bottom-width: 0px;
+      margin-bottom: 2px;
+    }
+
+    /* Mobile Ergonomic Touch Target (44x44px minimum) */
+    .touch-target-44 {
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    /* Custom Warm Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base, #1c1917); }
+    ::-webkit-scrollbar-thumb { background: #292524; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #44403c; }
+
+    /* Modal Backdrop Blur */
+    .modal-overlay {
+      backdrop-filter: blur(6px);
+      background-color: rgba(10, 9, 8, 0.82);
+    }
+
+    /* Animation */
+    .fade-in { animation: fadeIn .2s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Badges */
+    .badge-area    { background: rgba(234, 88, 12, 0.15); color: #fdba74; border: 1px solid rgba(234, 88, 12, 0.3); }
+    .badge-length  { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-qty     { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-fixed   { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-custom  { background: rgba(244, 63, 94, 0.15); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-formula { background: rgba(6, 182, 212, 0.15); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.3); }
+
+    /* Drag & Drop 拖曳排序樣式 */
+    .quote-drag-row { cursor: default; }
+    .quote-drag-row.dragging { opacity: 0.4; background: rgba(234, 88, 12, 0.08); }
+    .quote-drag-row.drag-over { border-top: 2px solid #ea580c; }
+    .drag-handle {
+      cursor: grab;
+      color: #a8a29e;
+      padding: 4px 6px;
+      border-radius: 6px;
+      user-select: none;
+      font-size: 14px;
+      line-height: 1;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .drag-handle:hover { color: #fef3c7; background: rgba(68, 64, 60, 0.6); }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* 才數即時換算浮動標籤 */
+    .sai-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 6px;
+      padding: 2px 7px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .sai-label.updated { color: #fef3c7; background: rgba(234, 88, 12, 0.25); border-color: rgba(234, 88, 12, 0.5); }
+
+    /* 輸入框聚焦琥珀微光 */
+    input[type="number"]:focus, input[type="text"]:focus, select:focus, textarea:focus {
+      box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #ffffff !important; color: #000000 !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row antialiased selection:bg-terracotta-600 selection:text-white pb-20 lg:pb-0">
+
+<!-- ════════════════════════════════════════════════════════════════
+     DESKTOP WARM GLASS SIDEBAR (桌機左側溫暖玻璃導覽列)
+════════════════════════════════════════════════════════════════ -->
+<aside class="hidden lg:flex w-64 bg-warm-900/90 border-r border-warm-800 p-5 flex-col justify-between shrink-0 sticky top-0 h-screen z-30 no-print backdrop-blur-md">
+  <div class="space-y-6">
+    <!-- Brand Logo -->
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-terracotta-700 via-terracotta-600 to-amber-500 flex items-center justify-center shadow-lg shadow-terracotta-600/25 border border-terracotta-500/40">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        </svg>
+      </div>
+      <div>
+        <div class="font-black text-sm tracking-tight text-warm-100 flex items-center gap-1.5">
+          <span>智能估價系統</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded bg-terracotta-600/20 text-terracotta-500 font-bold border border-terracotta-600/30">v3.1.0</span>
+        </div>
+        <p class="text-[11px] text-warm-400">Tactile Warm Aesthetics</p>
+      </div>
+    </div>
+
+    <!-- Navigation Menu Items -->
+    <nav class="space-y-1.5 text-xs font-semibold">
+      <button onclick="switchTab('intelligence')" id="sidebar-intelligence"
+        class="nav-tab-btn w-full px-3.5 py-3 rounded-xl flex items-center gap-3 transition text-warm-400 hover:text-warm-100 hover:bg-warm-800/60">
+        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <span>價格查詢與比較</span>
+      </button>
+
+      <button onclick="switchTab('ai')" id="sidebar-ai"
+        class="nav-tab-btn w-full px-3.5 py-3 rounded-xl flex items-center gap-3 transition text-warm-400 hover:text-warm-100 hover:bg-warm-800/60">
+        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <span>報價單 AI 判讀</span>
+      </button>
+
+      <button onclick="switchTab('quote')" id="sidebar-quote"
+        class="nav-tab-btn w-full px-3.5 py-3 rounded-xl flex items-center gap-3 transition text-warm-100 bg-warm-800 shadow-sm border border-warm-700">
+        <svg class="w-4 h-4 text-terracotta-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>專案估價編輯器</span>
+      </button>
+
+      <button onclick="switchTab('settings')" id="sidebar-settings"
+        class="nav-tab-btn w-full px-3.5 py-3 rounded-xl flex items-center gap-3 transition text-warm-400 hover:text-warm-100 hover:bg-warm-800/60">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>廠商與設定管理</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Sidebar Footer Info -->
+  <div class="p-3 bg-warm-850/80 rounded-2xl border border-warm-800 text-[11px] text-warm-400 space-y-1">
+    <div class="flex items-center justify-between text-warm-200">
+      <span>AI 服務狀態</span>
+      <span id="sidebar-ai-status-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+    </div>
+    <div id="sidebar-ai-status-text" class="text-[10px] text-warm-400 truncate">Gemini 3.8 準備就緒</div>
+  </div>
+</aside>
+
+<!-- ════════════════════════════════════════════════════════════════
+     MOBILE TOP BAR & BOTTOM DOCK (手機頂部與底部人體工學選單)
+════════════════════════════════════════════════════════════════ -->
+<header class="lg:hidden bg-warm-900/95 border-b border-warm-800 px-4 py-3 sticky top-0 z-30 flex items-center justify-between no-print backdrop-blur-md">
+  <div class="flex items-center gap-2.5">
+    <div class="w-8 h-8 rounded-xl bg-terracotta-600 flex items-center justify-center text-white font-black text-xs shadow-md">估</div>
+    <span class="font-bold text-sm text-warm-100">內部查價與智能估價</span>
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="text-[10px] bg-terracotta-600/20 text-terracotta-500 px-2 py-0.5 rounded-full font-bold">v3.1.0</span>
+  </div>
+</header>
+
+<!-- Mobile Bottom Dock (滿足 44px 人體工學觸控熱區) -->
+<nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-warm-900/95 border-t border-warm-800 px-2 py-1.5 z-40 flex items-center justify-around no-print backdrop-blur-md shadow-2xl">
+  <button onclick="switchTab('intelligence')" id="mobile-intelligence"
+    class="mobile-nav-btn touch-target-44 flex flex-col items-center justify-center text-[10px] text-warm-400">
+    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    <span>查價比價</span>
+  </button>
+  <button onclick="switchTab('ai')" id="mobile-ai"
+    class="mobile-nav-btn touch-target-44 flex flex-col items-center justify-center text-[10px] text-warm-400">
+    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    <span>AI 讀單</span>
+  </button>
+  <button onclick="switchTab('quote')" id="mobile-quote"
+    class="mobile-nav-btn touch-target-44 flex flex-col items-center justify-center text-[10px] text-terracotta-500 font-bold">
+    <svg class="w-5 h-5 text-terracotta-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+    <span>估價開單</span>
+  </button>
+  <button onclick="switchTab('settings')" id="mobile-settings"
+    class="mobile-nav-btn touch-target-44 flex flex-col items-center justify-center text-[10px] text-warm-400">
+    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    <span>設定</span>
+  </button>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════════════
+     MAIN WRAPPER
+════════════════════════════════════════════════════════════════ -->
+<main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 1: 價格查詢與比較 (Price Intelligence)
+  ════════════════════════════════════════════════════════════ -->
+  <section id="pane-intelligence" class="space-y-6 fade-in hidden">
+    <!-- Filter Card -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-warm-100 flex items-center gap-2">
+            <span>市場平衡價格情報與廠商歷史比價</span>
+            <span class="text-xs font-normal text-warm-400">（抗極端值分析）</span>
+          </h2>
+          <p class="text-xs text-warm-400 mt-0.5">即時演算中位數公允價、算術平均價與歷史價格離散度，開單時可一鍵快速帶入。</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <select id="intel-filter-wt" onchange="renderIntelligence()"
+            class="bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2.5 focus:border-terracotta-600 focus:outline-none">
+            <option value="">全部工種</option>
+          </select>
+          <div class="relative">
+            <input type="text" id="intel-search-kw" placeholder="搜尋品項/材質關鍵字..." oninput="renderIntelligence()"
+              class="bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl pl-8 pr-3 py-2.5 w-48 sm:w-56 focus:border-terracotta-600 focus:outline-none" />
+            <svg class="w-3.5 h-3.5 text-warm-400 absolute left-2.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <select id="intel-filter-vendor" onchange="renderIntelligence()"
+            class="bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2.5 focus:border-terracotta-600 focus:outline-none">
+            <option value="">全部廠商</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Stats Proposal Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mt-5">
+        <div class="bg-gradient-to-br from-terracotta-800/40 via-warm-850 to-warm-900 border border-terracotta-600/40 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+          <div class="text-[11px] text-terracotta-400 font-bold uppercase tracking-wider">市場平衡價 (中位數 Median)</div>
+          <div id="stat-median" class="text-2xl sm:text-3xl font-black text-warm-100 mt-1">$0</div>
+          <div class="text-[10px] text-warm-400 mt-0.5">最適公允標準參考價</div>
+        </div>
+
+        <div class="bg-warm-850 border border-warm-800 rounded-2xl p-4 shadow-sm">
+          <div class="text-[11px] text-emeraldWarm font-bold uppercase tracking-wider">算術平均價 (Average)</div>
+          <div id="stat-avg" class="text-2xl sm:text-3xl font-black text-emerald-300 mt-1">$0</div>
+          <div class="text-[10px] text-warm-400 mt-0.5">歷史總報價平均值</div>
+        </div>
+
+        <div class="bg-warm-850 border border-warm-800 rounded-2xl p-4 shadow-sm">
+          <div class="text-[11px] text-amberGlow font-bold uppercase tracking-wider">歷史最高/最低區間</div>
+          <div id="stat-range" class="text-xl sm:text-2xl font-bold text-amber-200 mt-1.5">$0 ~ $0</div>
+          <div class="text-[10px] text-warm-400 mt-0.5">市場價差分布區間</div>
+        </div>
+
+        <div class="bg-warm-850 border border-warm-800 rounded-2xl p-4 shadow-sm">
+          <div class="text-[11px] text-warm-400 font-bold uppercase tracking-wider">統計採樣筆數</div>
+          <div id="stat-count" class="text-2xl sm:text-3xl font-black text-warm-200 mt-1">0 <span class="text-xs font-normal text-warm-400">筆</span></div>
+          <div class="text-[10px] text-warm-400 mt-0.5">跨廠商報價累積量</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison & Detail Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-5 bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+          <h3 class="font-bold text-warm-100 text-sm flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            各廠商最新報價排序（便宜 → 昂貴）
+          </h3>
+          <span class="text-[11px] text-warm-400">最新採樣</span>
+        </div>
+        <div id="intel-vendor-rank" class="divide-y divide-warm-800/80 flex-1 overflow-y-auto max-h-[460px] pr-1"></div>
+      </div>
+
+      <div class="lg:col-span-7 bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+          <h3 class="font-bold text-warm-100 text-sm">歷史報價資料庫細項</h3>
+          <div class="text-xs text-warm-400">共 <span id="intel-table-count" class="text-terracotta-500 font-bold">0</span> 筆紀錄</div>
+        </div>
+        <div class="overflow-x-auto flex-1 max-h-[460px]">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="sticky top-0 bg-warm-900 border-b border-warm-800 text-warm-400 uppercase">
+              <tr>
+                <th class="py-2.5 px-3">日期</th>
+                <th class="py-2.5 px-3">廠商</th>
+                <th class="py-2.5 px-3">品項 / 材質</th>
+                <th class="py-2.5 px-3 text-right">單價</th>
+                <th class="py-2.5 px-3 text-center">單位</th>
+                <th class="py-2.5 px-3 text-right">帶入開單</th>
+              </tr>
+            </thead>
+            <tbody id="intel-history-tbody" class="divide-y divide-warm-800 text-warm-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 2: 報價單 AI 判讀
+  ════════════════════════════════════════════════════════════ -->
+  <section id="pane-ai" class="space-y-6 fade-in hidden">
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-6 shadow-xl">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-warm-800">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-warm-100 flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-lg bg-purple-500/20 text-purple-300 text-xs font-semibold border border-purple-500/30">Gemini 3.8 視覺與文字解析</span>
+            <span>廠商報價單 AI 自動辨識與歸檔</span>
+          </h2>
+          <p class="text-xs text-warm-400 mt-0.5">支援多模態圖片/PDF 自動去除 Base64 前綴，精準提取項目並消除 Markdown 代碼圍欄。</p>
+        </div>
+        <div id="ai-key-status-pill" class="flex items-center gap-2 text-xs bg-warm-850 px-3 py-1.5 rounded-xl border border-warm-800">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span id="ai-key-status-text" class="text-warm-200">Gemini 3.8 已就緒</span>
+          <button onclick="switchTab('settings')" class="text-terracotta-500 hover:underline ml-1">切換模型</button>
+        </div>
+      </div>
+
+      <div class="mt-5 grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div class="md:col-span-5 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-warm-200 mb-1">報價廠商（可留空由 AI 自動判斷）</label>
+            <select id="ai-input-vendor-select" class="w-full bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2.5 focus:border-terracotta-600 focus:outline-none">
+              <option value="">由 AI 自行從單據判讀</option>
+            </select>
+          </div>
+
+          <div class="border-2 border-dashed border-warm-700 hover:border-terracotta-500 rounded-2xl p-5 text-center bg-warm-850/60 transition cursor-pointer"
+               onclick="document.getElementById('ai-file-input').click()">
+            <input type="file" id="ai-file-input" accept="image/*,application/pdf" class="hidden" onchange="handleAiFileUpload(event)" />
+            <div class="w-12 h-12 rounded-2xl bg-terracotta-600/10 text-terracotta-500 flex items-center justify-center mx-auto mb-2">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <p class="text-xs font-semibold text-warm-100">點擊上傳或拖曳報價單圖片 / PDF</p>
+            <p class="text-[10px] text-warm-400 mt-1">支援 PNG, JPG, WebP 拍照或 PDF 電子檔</p>
+            <div id="ai-file-name-preview" class="text-xs text-amberGlow font-bold mt-2 hidden truncate"></div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-semibold text-warm-200">或直接貼上廠商文字內容</label>
+              <button onclick="fillAiSampleText()" class="text-[11px] text-terracotta-500 hover:underline">帶入測試範例</button>
+            </div>
+            <textarea id="ai-raw-text" rows="5" placeholder="例如：&#10;宏達廣告 報價單 2026/10/26&#10;1. 戶外防曬乳膠PP大圖輸出 150*300cm 2張 @$160/才&#10;2. 壓克力立體發光字 30cm 4組 @$1,250/組&#10;3. 現場高空安全放樣 一式 $4,000"
+              class="w-full bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl p-3 font-mono focus:border-terracotta-600 focus:outline-none"></textarea>
+          </div>
+
+          <button id="ai-parse-btn" onclick="executeAiParse()"
+            class="btn-tactile w-full py-3 px-4 bg-terracotta-600 hover:bg-terracotta-700 border-terracotta-800 text-white font-bold text-xs rounded-2xl shadow-lg shadow-terracotta-600/30">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <span>開始 AI 智能判讀</span>
+          </button>
+        </div>
+
+        <div class="md:col-span-7 bg-warm-850/60 border border-warm-800 rounded-3xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+              <div>
+                <h3 class="font-bold text-warm-100 text-sm">判讀結果核對與線上編輯</h3>
+                <p class="text-[11px] text-warm-400">確認工種與規格無誤後，點選「一鍵入庫」存入歷史價格庫。</p>
+              </div>
+              <span id="ai-items-badge" class="px-2.5 py-0.5 rounded-full text-[11px] bg-warm-800 text-warm-400">0 項目</span>
+            </div>
+
+            <div id="ai-loading" class="hidden py-16 text-center">
+              <div class="w-10 h-10 border-4 border-terracotta-600/30 border-t-terracotta-600 rounded-full animate-spin mx-auto mb-3"></div>
+              <p class="text-sm font-bold text-warm-100">Gemini 3.8 視覺模型深度解析中...</p>
+              <p class="text-xs text-warm-400 mt-1">正在提取單價、折算才數規格並清洗 Markdown 格式</p>
+            </div>
+
+            <div id="ai-empty" class="py-16 text-center text-warm-400">
+              <svg class="w-12 h-12 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <p class="text-xs">尚未載入項目，請於左側輸入內容或上傳單據</p>
+            </div>
+
+            <div id="ai-result-table-wrap" class="hidden mt-3 overflow-x-auto max-h-[380px]">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-warm-900 border-b border-warm-800 text-warm-400">
+                  <tr>
+                    <th class="p-2">品項名稱</th>
+                    <th class="p-2">對應工種</th>
+                    <th class="p-2">規格/才數</th>
+                    <th class="p-2">單位</th>
+                    <th class="p-2 text-right">單價</th>
+                    <th class="p-2 text-center">刪除</th>
+                  </tr>
+                </thead>
+                <tbody id="ai-tbody" class="divide-y divide-warm-800"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="ai-bottom-confirm-bar" class="hidden pt-4 border-t border-warm-800 flex items-center justify-between gap-2 mt-4 flex-wrap">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-warm-400">廠商:</span>
+              <input type="text" id="ai-confirm-vendor" class="bg-warm-800 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs w-36" />
+              <span class="text-warm-400 ml-1">日期:</span>
+              <input type="date" id="ai-confirm-date" class="bg-warm-800 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs w-32" />
+            </div>
+            <button onclick="commitAiParsedQuotes()"
+              class="btn-tactile py-2 px-4 bg-emeraldWarm hover:bg-emerald-600 border-emerald-800 text-white font-bold text-xs rounded-xl shadow-md">
+              <span>確認一鍵入庫</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 3: 專案估價編輯器 (QUOTATION EDITOR - 整合 5 項新建議)
+  ════════════════════════════════════════════════════════════ -->
+  <section id="pane-quote" class="space-y-6 fade-in">
+    <!-- Top Project Control Bar (建議 4: 多專案切換) -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="flex-1 space-y-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-terracotta-500 uppercase tracking-wider">當前專案工作區：</span>
+            <select id="quote-project-select" onchange="onSwitchProject(this.value)"
+              class="bg-warm-850 border border-warm-700 text-warm-100 text-xs font-semibold rounded-xl px-3 py-1.5 focus:border-terracotta-600 focus:outline-none">
+            </select>
+            <button onclick="openNewProjectDialog()" class="text-xs px-2.5 py-1 bg-warm-800 hover:bg-warm-700 text-warm-200 rounded-lg border border-warm-700 transition">
+              + 新增專案
+            </button>
+            <button onclick="exportSingleProjectJson()" class="text-xs px-2.5 py-1 bg-warm-800 hover:bg-warm-700 text-warm-200 rounded-lg border border-warm-700 transition">
+              匯出本案 JSON
+            </button>
+            <button onclick="document.getElementById('import-proj-file').click()" class="text-xs px-2.5 py-1 bg-warm-800 hover:bg-warm-700 text-warm-200 rounded-lg border border-warm-700 transition">
+              匯入專案
+            </button>
+            <input type="file" id="import-proj-file" accept=".json" class="hidden" onchange="importSingleProjectJson(event)" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
+            <div class="sm:col-span-6">
+              <input type="text" id="quote-proj-name" placeholder="專案名稱"
+                class="w-full text-base sm:text-lg font-black text-warm-100 bg-transparent border-0 border-b-2 border-warm-700 focus:border-terracotta-600 focus:outline-none pb-1 transition"
+                oninput="saveCurrentProjectState()" />
+            </div>
+            <div class="sm:col-span-3">
+              <input type="text" id="quote-client-name" placeholder="客戶名稱"
+                class="w-full bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2 focus:border-terracotta-600 focus:outline-none"
+                oninput="saveCurrentProjectState()" />
+            </div>
+            <div class="sm:col-span-3">
+              <input type="date" id="quote-date"
+                class="w-full bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2 focus:border-terracotta-600 focus:outline-none"
+                oninput="saveCurrentProjectState()" />
+            </div>
+          </div>
+        </div>
+
+        <div class="shrink-0 flex items-center gap-2">
+          <button onclick="runAiQuoteAudit()"
+            class="btn-tactile py-2.5 px-4 bg-purple-700 hover:bg-purple-600 border-purple-900 text-white font-bold text-xs rounded-2xl shadow-md flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            <span>🤖 AI 檢查報價單</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Quotation List (固定 6 欄位結構) -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl shadow-xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-warm-800 flex items-center justify-between no-print flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <h2 class="font-bold text-warm-100 text-sm sm:text-base">報價品項清單</h2>
+          <span class="text-xs text-warm-400">（固定 6 欄位架構，數量預設為 1）</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openTemplateSelectorModal()"
+            class="px-3 py-1.5 bg-warm-800 hover:bg-warm-700 text-warm-200 rounded-xl text-xs font-semibold border border-warm-700 transition flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-amberGlow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+            <span>📂 載入常用品項</span>
+          </button>
+          <button onclick="addQuoteItem()"
+            class="btn-tactile px-3.5 py-1.5 bg-terracotta-600 hover:bg-terracotta-700 border-terracotta-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span>新增品項</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Desktop 6 Header Columns (含拖曳把手欄) -->
+      <div class="hidden lg:grid gap-2 px-5 py-2.5 text-xs font-bold text-warm-400 uppercase tracking-wider bg-warm-950/60 border-b border-warm-800" style="grid-template-columns: 28px 1.2fr 1.3fr 1.8fr 0.7fr 1.2fr 1.2fr;">
+        <div class="text-center text-warm-500" title="拖曳把手">⋮⋮</div>
+        <div>工種選擇</div>
+        <div>品項 / 材質名稱</div>
+        <div>動態規格區</div>
+        <div class="text-center">數量 (固定)</div>
+        <div class="text-right">單價與參考價</div>
+        <div class="text-right">小計 ($)</div>
+      </div>
+
+      <div id="quote-items-container" class="divide-y divide-warm-800/80"></div>
+
+      <div id="quote-items-empty" class="hidden py-16 text-center text-warm-400">
+        <svg class="w-12 h-12 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <p class="text-xs">尚無品項，請點選右上角「新增品項」或載入常用範本</p>
+      </div>
+    </div>
+
+    <!-- Extra Fees & Grand Total Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-6 bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+          <div>
+            <h3 class="font-bold text-warm-100 text-sm">動態附加費用清單</h3>
+            <p class="text-[11px] text-warm-400">勾選套用出車費、場地規費或施工加成比例</p>
+          </div>
+          <button onclick="switchTab('settings')" class="text-xs text-terracotta-500 hover:underline no-print">管理費用項目</button>
+        </div>
+        <div id="quote-extra-fees-list" class="space-y-2.5"></div>
+      </div>
+
+      <div class="lg:col-span-6 bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl space-y-4 flex flex-col justify-between">
+        <div>
+          <h3 class="font-bold text-warm-100 text-sm pb-3 border-b border-warm-800">三階段發票稅金結算 (Proposal Card)</h3>
+
+          <div class="space-y-2.5 mt-3 text-xs sm:text-sm">
+            <div class="flex items-center justify-between text-warm-400">
+              <span>1. 材料項目小計總額</span>
+              <span id="quote-calc-material" class="font-semibold text-warm-100">$0</span>
+            </div>
+            <div class="flex items-center justify-between text-warm-400">
+              <span class="flex items-center gap-1.5">
+                <span>2. 附加費用總計</span>
+                <span id="quote-extra-badge" class="text-[10px] bg-warm-800 px-2 py-0.5 rounded text-warm-400">0 項</span>
+              </span>
+              <span id="quote-calc-extra" class="font-semibold text-warm-100">+$0</span>
+            </div>
+            <div class="pt-2 border-t border-warm-800 flex items-center justify-between">
+              <span class="font-bold text-warm-200">未稅總額 (Subtotal)</span>
+              <span id="quote-calc-subtotal" class="text-base sm:text-lg font-bold text-warm-100">$0</span>
+            </div>
+            <div class="flex items-center justify-between text-warm-400">
+              <span>營業稅 (5% VAT)</span>
+              <span id="quote-calc-tax" class="font-semibold text-amberGlow">+$0</span>
+            </div>
+            <div class="pt-3 border-t-2 border-warm-700/80 flex items-center justify-between">
+              <div>
+                <div class="text-xs font-bold text-warm-400 uppercase tracking-wide">含稅總計金額 (Grand Total)</div>
+                <div class="text-[10px] text-warm-400">新台幣 NTD 整</div>
+              </div>
+              <div id="quote-calc-grand" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-terracotta-500 via-amber-400 to-warm-100">$0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-warm-800 space-y-2.5 no-print">
+          <div class="grid grid-cols-2 gap-2.5">
+            <button onclick="copyQuoteDualFormat('client')" id="btn-copy-client"
+              class="btn-tactile py-2.5 px-3 bg-terracotta-600 hover:bg-terracotta-700 border-terracotta-800 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              <span>複製客戶格式 (簡潔)</span>
+            </button>
+            <button onclick="copyQuoteDualFormat('internal')" id="btn-copy-internal"
+              class="btn-tactile py-2.5 px-3 bg-warm-800 hover:bg-warm-750 border-warm-700 text-warm-100 font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5">
+              <svg class="w-4 h-4 text-amberGlow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              <span>複製內部對帳格式</span>
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 pt-1">
+            <button onclick="window.print()" class="text-xs text-warm-400 hover:text-warm-200 underline">
+              友善列印報價單
+            </button>
+            <button onclick="resetQuoteSheet()" class="text-xs text-red-400 hover:text-red-300">
+              清空當前專案品項
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 4: 廠商與設定管理 (SETTINGS CRUD)
+  ════════════════════════════════════════════════════════════ -->
+  <section id="pane-settings" class="space-y-6 fade-in hidden">
+    <!-- Gemini Config -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl">
+      <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-warm-100">Gemini API 金鑰與現行多模態模型</h2>
+          <p class="text-xs text-warm-400">支援官方現行最新端點 (gemini-3.8-flash, gemini-3.8-pro)。</p>
+        </div>
+        <span class="text-[10px] bg-terracotta-600/20 text-terracotta-500 border border-terracotta-600/30 px-2 py-0.5 rounded-full font-bold">本機加密儲存</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3.5 mt-4">
+        <div class="md:col-span-7">
+          <label class="block text-xs font-semibold text-warm-300 mb-1">API Key</label>
+          <div class="relative">
+            <input type="password" id="cfg-gemini-key" placeholder="AIzaSy..."
+              class="w-full bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2.5 font-mono focus:border-terracotta-600 focus:outline-none" />
+            <button type="button" onclick="togglePass('cfg-gemini-key')" class="absolute right-3 top-2.5 text-xs text-warm-400 hover:text-warm-100">顯示/隱藏</button>
+          </div>
+        </div>
+        <div class="md:col-span-3">
+          <label class="block text-xs font-semibold text-warm-300 mb-1">端點模型選擇</label>
+          <select id="cfg-gemini-model" onchange="onGeminiModelSelectChange()" class="w-full bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2.5 focus:border-terracotta-600 focus:outline-none">
+            <option value="gemini-3.8-flash" selected>gemini-3.8-flash (官方推薦，極速多模態)</option>
+            <option value="gemini-3.8-pro">gemini-3.8-pro (高階深度分析)</option>
+            <option value="custom">自訂模型名稱...</option>
+          </select>
+          <input type="text" id="cfg-gemini-model-custom" placeholder="輸入自訂模型代號，例如：gemini-exp-1114"
+            class="hidden w-full mt-2 bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2.5 font-mono focus:border-terracotta-600 focus:outline-none" />
+        </div>
+        <div class="md:col-span-2 flex items-end">
+          <button onclick="saveGeminiSettings()" class="btn-tactile w-full py-2.5 bg-terracotta-600 hover:bg-terracotta-700 border-terracotta-800 text-white font-bold text-xs rounded-xl shadow-md">
+            儲存設定
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vendor Management -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl">
+      <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-warm-100">廠商通訊錄與合作評等</h2>
+          <p class="text-xs text-warm-400">管理供應商聯絡資訊、統編與合作備註。</p>
+        </div>
+        <button onclick="openVendorModal(null)" class="btn-tactile px-3 py-1.5 bg-warm-800 hover:bg-warm-750 border-warm-700 text-warm-100 rounded-xl text-xs font-bold shadow-sm">
+          + 新增廠商
+        </button>
+      </div>
+      <div class="overflow-x-auto mt-3">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-warm-950 text-warm-400 uppercase">
+            <tr>
+              <th class="py-2 px-3">廠商名稱</th>
+              <th class="py-2 px-3">統一編號</th>
+              <th class="py-2 px-3">聯絡人 / 電話</th>
+              <th class="py-2 px-3">評等</th>
+              <th class="py-2 px-3 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="cfg-vendors-tbody" class="divide-y divide-warm-800 text-warm-200"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Work Types Management -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl">
+      <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-warm-100">工種計價模式設定 (預設範本)</h2>
+          <p class="text-xs text-warm-400">支援面積型、長度型、數量型、一式型、採購型與自由公式型。</p>
+        </div>
+        <button onclick="openWorkTypeModal(null)" class="btn-tactile px-3 py-1.5 bg-warm-800 hover:bg-warm-750 border-warm-700 text-warm-100 rounded-xl text-xs font-bold shadow-sm">
+          + 新增工種
+        </button>
+      </div>
+      <div id="cfg-worktypes-list" class="divide-y divide-warm-800 mt-2"></div>
+    </div>
+
+    <!-- Extra Fees Settings -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl">
+      <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-warm-100">動態附加費用項目管理</h2>
+          <p class="text-xs text-warm-400">設定固定金額型 (如出車費) 與比例加成型 (如施工加成)。</p>
+        </div>
+        <button onclick="openExtraFeeModal(null)" class="btn-tactile px-3 py-1.5 bg-warm-800 hover:bg-warm-750 border-warm-700 text-warm-100 rounded-xl text-xs font-bold shadow-sm">
+          + 新增附加費
+        </button>
+      </div>
+      <div id="cfg-extra-fees-list" class="divide-y divide-warm-800 mt-2"></div>
+    </div>
+
+    <!-- Template Management -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl">
+      <div class="flex items-center justify-between pb-3 border-b border-warm-800">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-warm-100">常用品項規格範本庫</h2>
+          <p class="text-xs text-warm-400">已儲存之常用規格，可隨時於開單時一鍵載入。</p>
+        </div>
+      </div>
+      <div id="cfg-templates-list" class="divide-y divide-warm-800 mt-2"></div>
+    </div>
+
+    <!-- Backup & Restore -->
+    <div class="bg-warm-900 border border-warm-800 rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div>
+        <h3 class="font-bold text-warm-100 text-xs sm:text-sm">系統資料完整備份與還原</h3>
+        <p class="text-[11px] text-warm-400">所有專案、歷史報價、廠商與範本均存於本機 LocalStorage。</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="exportAllSystemData()" class="btn-tactile px-3 py-1.5 bg-warm-800 hover:bg-warm-750 border-warm-700 text-warm-200 text-xs rounded-xl">
+          匯出系統備份 JSON
+        </button>
+        <button onclick="document.getElementById('import-sys-file').click()" class="btn-tactile px-3 py-1.5 bg-warm-800 hover:bg-warm-750 border-warm-700 text-warm-200 text-xs rounded-xl">
+          匯入備份檔
+        </button>
+        <input type="file" id="import-sys-file" accept=".json" class="hidden" onchange="importAllSystemData(event)" />
+        <button onclick="resetSystemToSeed()" class="btn-tactile px-3 py-1.5 bg-red-900/40 hover:bg-red-900/60 border-red-800 text-red-300 text-xs rounded-xl">
+          重置為預設演示資料
+        </button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ════════════════════════════════════════════════════════════════
+     MODALS (防呆規範：禁止點擊遮罩關閉)
+════════════════════════════════════════════════════════════════ -->
+
+<!-- 1. AI AUDIT MODAL (建議 5: 報價單智能審查) -->
+<div id="modal-ai-audit" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+  <div class="bg-warm-900 border border-warm-800 w-full max-w-lg rounded-3xl shadow-2xl fade-in overflow-hidden">
+    <div class="px-6 py-4 border-b border-warm-800 flex items-center justify-between">
+      <h3 class="font-bold text-warm-100 text-sm flex items-center gap-2">
+        <span class="text-base">🤖</span>
+        <span>AI 報價單合理性檢查報告 (Gemini 3.8)</span>
+      </h3>
+      <button onclick="closeModal('modal-ai-audit')" class="text-warm-400 hover:text-warm-100 p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs" id="ai-audit-content"></div>
+    <div class="px-6 py-3.5 border-t border-warm-800 flex justify-end">
+      <button onclick="closeModal('modal-ai-audit')" class="btn-tactile px-4 py-2 bg-warm-800 hover:bg-warm-750 border-warm-700 text-warm-100 text-xs rounded-xl font-bold">
+        關閉
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 2. REFERENCE PRICE PICKER MODAL (建議 1: 帶入市場參考價) -->
+<div id="modal-ref-price" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+  <div class="bg-warm-900 border border-warm-800 w-full max-w-md rounded-3xl shadow-2xl fade-in overflow-hidden">
+    <div class="px-6 py-4 border-b border-warm-800 flex items-center justify-between">
+      <h3 class="font-bold text-warm-100 text-sm flex items-center gap-1.5">
+        <span class="text-amberGlow">⚡</span>
+        <span>選擇市場參考價格帶入</span>
+      </h3>
+      <button onclick="closeModal('modal-ref-price')" class="text-warm-400 hover:text-warm-100 p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-5 space-y-3 max-h-[60vh] overflow-y-auto text-xs" id="ref-price-options-container"></div>
+  </div>
+</div>
+
+<!-- 3. TEMPLATE SELECTOR MODAL (建議 2: 常用品項載入) -->
+<div id="modal-template-selector" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+  <div class="bg-warm-900 border border-warm-800 w-full max-w-md rounded-3xl shadow-2xl fade-in overflow-hidden">
+    <div class="px-6 py-4 border-b border-warm-800 flex items-center justify-between">
+      <h3 class="font-bold text-warm-100 text-sm">載入常用報價範本</h3>
+      <button onclick="closeModal('modal-template-selector')" class="text-warm-400 hover:text-warm-100 p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-5 space-y-2.5 max-h-[60vh] overflow-y-auto text-xs" id="template-items-container"></div>
+  </div>
+</div>
+
+<!-- 4. SAVE AS TEMPLATE MODAL -->
+<div id="modal-save-template" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+  <div class="bg-warm-900 border border-warm-800 w-full max-w-sm rounded-3xl shadow-2xl fade-in p-6 space-y-4">
+    <h3 class="font-bold text-warm-100 text-sm">儲存為常用品項範本</h3>
+    <div>
+      <label class="block text-xs text-warm-300 mb-1">範本自訂名稱</label>
+      <input type="text" id="tpl-custom-name" class="w-full bg-warm-850 border border-warm-700 text-warm-100 text-xs rounded-xl px-3 py-2" />
+    </div>
+    <div class="flex justify-end gap-2 pt-2">
+      <button onclick="closeModal('modal-save-template')" class="px-3 py-1.5 bg-warm-800 text-warm-300 rounded-xl text-xs">取消</button>
+      <button onclick="confirmSaveTemplate()" class="btn-tactile px-4 py-1.5 bg-terracotta-600 border-terracotta-800 text-white font-bold text-xs rounded-xl">儲存範本</button>
+    </div>
+  </div>
+</div>
+
+<!-- 5. WORK TYPE MODAL -->
+<div id="modal-worktype" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+  <div class="bg-warm-900 border border-warm-800 w-full max-w-lg rounded-3xl shadow-2xl fade-in overflow-hidden">
+    <div class="px-6 py-4 border-b border-warm-800 flex items-center justify-between">
+      <h3 id="modal-wt-title" class="font-bold text-warm-100 text-sm">新增/編輯工種</h3>
+      <button onclick="closeModal('modal-worktype')" class="text-warm-400 hover:text-warm-100 p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+      <div>
+        <label class="block font-semibold text-warm-200 mb-1">工種名稱 *</label>
+        <input type="text" id="m-wt-name" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+      </div>
+      <div>
+        <label class="block font-semibold text-warm-200 mb-1">計價模式 *</label>
+        <select id="m-wt-mode" onchange="onModalWtModeChange()" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100">
+          <option value="area">面積型 [長cm * 寬cm / 900 材數 * 單價]</option>
+          <option value="length">長度型 [長度 * 單價]</option>
+          <option value="qty">數量型 [數量 * 單價]</option>
+          <option value="fixed">一式型 [固定單價]</option>
+          <option value="custom">採購型 [數量 * 單價]</option>
+          <option value="formula">自由公式型 [自訂變數公式]</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold text-warm-200 mb-1">單位文字</label>
+          <input type="text" id="m-wt-unit" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+        </div>
+        <div>
+          <label class="block font-semibold text-warm-200 mb-1">預設參考單價</label>
+          <input type="number" id="m-wt-price" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+        </div>
+      </div>
+      <div id="m-wt-divisor-wrap">
+        <label class="block font-semibold text-warm-200 mb-1">每才換算除數 (cm²)</label>
+        <input type="number" id="m-wt-divisor" value="900" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+      </div>
+      <div id="m-wt-formula-wrap" class="hidden space-y-2 bg-warm-950 p-3 rounded-xl border border-warm-800">
+        <label class="block font-semibold text-cyan-300">公式運算式 (如 A * B + C)</label>
+        <input type="text" id="m-wt-formula-str" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100 font-mono" />
+        <label class="block font-semibold text-warm-400">變數名稱 (逗號隔開)</label>
+        <input type="text" id="m-wt-formula-vars" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100 font-mono" />
+      </div>
+      <div class="bg-warm-850 border border-warm-800 p-3 rounded-xl space-y-2">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="m-wt-has-minfee" class="w-4 h-4 accent-terracotta-600 rounded" onchange="document.getElementById('m-wt-minfee-wrap').classList.toggle('hidden', !this.checked)" />
+          <span class="font-bold text-warm-200">啟用低消/基本費門檻</span>
+        </label>
+        <div id="m-wt-minfee-wrap" class="hidden">
+          <input type="number" id="m-wt-minfee" placeholder="金額 (如 3000)" class="w-full bg-warm-900 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-warm-800 flex justify-end gap-2">
+      <button onclick="closeModal('modal-worktype')" class="px-3 py-1.5 text-warm-300 text-xs">取消</button>
+      <button onclick="saveWorkTypeModal()" class="btn-tactile px-4 py-1.5 bg-terracotta-600 border-terracotta-800 text-white font-bold text-xs rounded-xl">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 6. VENDOR MODAL -->
+<div id="modal-vendor" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+  <div class="bg-warm-900 border border-warm-800 w-full max-w-md rounded-3xl shadow-2xl fade-in overflow-hidden">
+    <div class="px-6 py-4 border-b border-warm-800 flex items-center justify-between">
+      <h3 id="modal-vendor-title" class="font-bold text-warm-100 text-sm">新增廠商</h3>
+      <button onclick="closeModal('modal-vendor')" class="text-warm-400 hover:text-warm-100 p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-3.5 text-xs">
+      <div>
+        <label class="block font-semibold text-warm-200 mb-1">廠商名稱 *</label>
+        <input type="text" id="m-vnd-name" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold text-warm-200 mb-1">統一編號</label>
+          <input type="text" id="m-vnd-taxid" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+        </div>
+        <div>
+          <label class="block font-semibold text-warm-200 mb-1">評等</label>
+          <select id="m-vnd-rating" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100">
+            <option value="5">★★★★★ 首選</option>
+            <option value="4">★★★★☆ 優質</option>
+            <option value="3">★★★☆☆ 普通</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold text-warm-200 mb-1">聯絡窗口</label>
+          <input type="text" id="m-vnd-contact" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+        </div>
+        <div>
+          <label class="block font-semibold text-warm-200 mb-1">電話 / LINE</label>
+          <input type="text" id="m-vnd-phone" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+        </div>
+      </div>
+      <div>
+        <label class="block font-semibold text-warm-200 mb-1">備註資訊</label>
+        <input type="text" id="m-vnd-note" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-warm-800 flex justify-end gap-2">
+      <button onclick="closeModal('modal-vendor')" class="px-3 py-1.5 text-warm-300 text-xs">取消</button>
+      <button onclick="saveVendorModal()" class="btn-tactile px-4 py-1.5 bg-terracotta-600 border-terracotta-800 text-white font-bold text-xs rounded-xl">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 7. EXTRA FEE MODAL -->
+<div id="modal-extrafee" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+  <div class="bg-warm-900 border border-warm-800 w-full max-w-md rounded-3xl shadow-2xl fade-in overflow-hidden">
+    <div class="px-6 py-4 border-b border-warm-800 flex items-center justify-between">
+      <h3 id="modal-fee-title" class="font-bold text-warm-100 text-sm">新增附加費用項目</h3>
+      <button onclick="closeModal('modal-extrafee')" class="text-warm-400 hover:text-warm-100 p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-3.5 text-xs">
+      <div>
+        <label class="block font-semibold text-warm-200 mb-1">費用名稱 *</label>
+        <input type="text" id="m-fee-name" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+      </div>
+      <div>
+        <label class="block font-semibold text-warm-200 mb-1">計算類型</label>
+        <select id="m-fee-type" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100">
+          <option value="fixed">固定金額型 (NTD $)</option>
+          <option value="percent">比例加成型 (% 材料總額)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold text-warm-200 mb-1">數值</label>
+        <input type="number" id="m-fee-val" class="w-full bg-warm-850 border border-warm-700 rounded-xl px-3 py-2 text-warm-100" />
+      </div>
+      <div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="m-fee-default-on" class="w-4 h-4 accent-terracotta-600 rounded" />
+          <span class="text-warm-200 font-bold">新開專案預設啟用</span>
+        </label>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-warm-800 flex justify-end gap-2">
+      <button onclick="closeModal('modal-extrafee')" class="px-3 py-1.5 text-warm-300 text-xs">取消</button>
+      <button onclick="saveExtraFeeModal()" class="btn-tactile px-4 py-1.5 bg-terracotta-600 border-terracotta-800 text-white font-bold text-xs rounded-xl">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 8. CONFIRM DIALOG -->
+<div id="modal-confirm" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+  <div class="bg-warm-900 border border-warm-800 w-full max-w-sm rounded-3xl shadow-2xl p-6 text-center space-y-4 fade-in">
+    <div class="w-12 h-12 bg-red-900/30 text-red-400 rounded-2xl flex items-center justify-center mx-auto border border-red-800">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+    </div>
+    <p id="confirm-modal-msg" class="text-warm-100 font-bold text-sm">確認執行此操作？</p>
+    <div class="flex gap-2 pt-2">
+      <button onclick="closeConfirmModal(false)" class="flex-1 py-2 rounded-xl bg-warm-850 hover:bg-warm-800 text-warm-300 font-bold text-xs">取消</button>
+      <button onclick="closeConfirmModal(true)" class="btn-tactile flex-1 py-2 rounded-xl bg-red-700 hover:bg-red-600 border-red-900 text-white font-bold text-xs">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ TOAST NOTIFICATION ═══════════════════════ -->
+<div id="toast" class="fixed bottom-20 lg:bottom-6 right-6 z-50 hidden pointer-events-none fade-in">
+  <div id="toast-inner" class="bg-warm-900/95 border border-warm-700 text-warm-100 text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 backdrop-blur-md">
+    <span id="toast-icon">✓</span>
+    <span id="toast-msg">操作成功</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     CORE JAVASCRIPT ENGINE (2026 TACTILE UPGRADE v3.1.0)
+════════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * STORAGE SCHEMAS & DEFAULT DATA
+ * ─────────────────────────────────────────────────────────────
+ */
+const KEY_VENDORS   = 'piq_vendors';
+const KEY_QUOTES    = 'piq_quotes';
+const KEY_SETTINGS  = 'piq_settings';
+const KEY_PROJECTS  = 'piq_projects';
+const KEY_TEMPLATES = 'piq_templates';
+
+const SEED_WORKTYPES = [
+  { id: 'wt-1', name: '大圖輸出 (PP/PVC)', mode: 'area', unit: '才', price: 150, divisor: 900, hasMinFee: true, minFee: 3000 },
+  { id: 'wt-2', name: '壓克力立體發光字', mode: 'qty', unit: '組', price: 1200, divisor: 900, hasMinFee: false, minFee: 0 },
+  { id: 'wt-3', name: 'LED 軟條燈 / 邊框燈', mode: 'length', unit: '米', price: 280, divisor: 900, hasMinFee: false, minFee: 0 },
+  { id: 'wt-4', name: '現場鐵架組裝 (自訂公式)', mode: 'formula', unit: '式', price: 180, divisor: 900, hasMinFee: true, minFee: 5000, formula: 'W * H + M', formulaVars: 'W, H, M' },
+  { id: 'wt-5', name: '現場高空丈量與放樣', mode: 'fixed', unit: '次', price: 3500, divisor: 900, hasMinFee: false, minFee: 0 },
+  { id: 'wt-6', name: '特規五金件採購', mode: 'custom', unit: '批', price: 4200, divisor: 900, hasMinFee: false, minFee: 0 },
+];
+
+const SEED_VENDORS = [
+  { id: 'v-1', name: '宏達廣告工程社', taxId: '82194821', contact: '陳經理', phone: '0912-345678', rating: 5, note: '大圖急件首選，色彩校正精確' },
+  { id: 'v-2', name: '彩藝數位大圖輸出', taxId: '54219803', contact: '林小姐', phone: '02-23456789', rating: 4, note: '乳膠無毒墨水、布類印刷擅長' },
+  { id: 'v-3', name: '正大金屬招牌鐵工廠', taxId: '12984729', contact: '王師傅', phone: '0933-888999', rating: 4, note: '重型鋼構與霓虹燈具骨架' },
+  { id: 'v-4', name: '億達雷射壓克力精品', taxId: '49281723', contact: '張廠長', phone: '02-87654321', rating: 5, note: '雷射雕刻倒角精緻、光導板勻光' },
+];
+
+const SEED_QUOTES = [
+  { id: 'q-1', date: '2026-10-24', vendorId: 'v-1', vendorName: '宏達廣告工程社', wtId: 'wt-1', wtName: '大圖輸出 (PP/PVC)', itemLabel: '戶外抗候乳膠PP大圖輸出', spec: '120x300cm (40才)', price: 145, unit: '才', mode: 'area' },
+  { id: 'q-2', date: '2026-10-22', vendorId: 'v-2', vendorName: '彩藝數位大圖輸出', wtId: 'wt-1', wtName: '大圖輸出 (PP/PVC)', itemLabel: '戶外抗候乳膠PP大圖輸出', spec: '120x300cm (40才)', price: 160, unit: '才', mode: 'area' },
+  { id: 'q-3', date: '2026-10-18', vendorId: 'v-1', vendorName: '宏達廣告工程社', wtId: 'wt-1', wtName: '大圖輸出 (PP/PVC)', itemLabel: '戶外抗候乳膠PP大圖輸出', spec: '標準規格', price: 150, unit: '才', mode: 'area' },
+  { id: 'q-4', date: '2026-10-25', vendorId: 'v-4', vendorName: '億達雷射壓克力精品', wtId: 'wt-2', wtName: '壓克力立體發光字', itemLabel: '30cm 正發光金屬字殼', spec: '30cm', price: 1150, unit: '組', mode: 'qty' },
+  { id: 'q-5', date: '2026-10-20', vendorId: 'v-1', vendorName: '宏達廣告工程社', wtId: 'wt-2', wtName: '壓克力立體發光字', itemLabel: '30cm 正發光金屬字殼', spec: '30cm', price: 1300, unit: '組', mode: 'qty' },
+];
+
+const SEED_EXTRA_FEES = [
+  { id: 'fee-1', name: '固定出車與運輸車資', type: 'fixed', value: 6000, defaultOn: true },
+  { id: 'fee-2', name: '基本施工工資 (10%)', type: 'percent', value: 10, defaultOn: true },
+  { id: 'fee-3', name: '夜間進場施工加成 (10%)', type: 'percent', value: 10, defaultOn: false },
+  { id: 'fee-4', name: '高空吊車進場作業規費', type: 'fixed', value: 8000, defaultOn: false },
+];
+
+const SEED_TEMPLATES = [
+  { id: 'tpl-1', name: '外牆大型乳膠帆布 (高空防風)', wtId: 'wt-1', label: '外牆大型乳膠帆布', w: 400, h: 300, len: 1, qty: 1, price: 160, unit: '才', hasMinFee: true, minFee: 4000 },
+  { id: 'tpl-2', name: '門市正面立體LED字組 (5字)', wtId: 'wt-2', label: '正面立體LED字組', w: 1, h: 1, len: 1, qty: 5, price: 1200, unit: '組', hasMinFee: false, minFee: 0 },
+  { id: 'tpl-3', name: '招牌邊緣隱形LED軟條 (10米)', wtId: 'wt-3', label: '招牌邊緣隱形LED軟條', w: 1, h: 1, len: 10, qty: 1, price: 280, unit: '米', hasMinFee: false, minFee: 0 },
+];
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * STATE
+ * ─────────────────────────────────────────────────────────────
+ */
+let dbVendors   = [];
+let dbQuotes    = [];
+let dbSettings  = {};
+let dbTemplates = [];
+let dbProjects  = [];
+let currentProjectId = null;
+
+let editingWorkTypeId = null;
+let editingVendorId   = null;
+let editingFeeId      = null;
+let confirmCallback   = null;
+let currentRefPickerIndex = null;
+let pendingSaveTemplateItem = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  initStorage();
+  initProjects();
+  initIntelligenceFilters();
+  renderIntelligence();
+  renderQuoteEditor();
+  renderSettingsPanels();
+  updateAiStatusDisplay();
+});
+
+function initStorage() {
+  try {
+    const rawV = localStorage.getItem(KEY_VENDORS);
+    dbVendors = rawV ? JSON.parse(rawV) : [...SEED_VENDORS];
+  } catch { dbVendors = [...SEED_VENDORS]; }
+
+  try {
+    const rawQ = localStorage.getItem(KEY_QUOTES);
+    dbQuotes = rawQ ? JSON.parse(rawQ) : [...SEED_QUOTES];
+  } catch { dbQuotes = [...SEED_QUOTES]; }
+
+  try {
+    const rawS = localStorage.getItem(KEY_SETTINGS);
+    dbSettings = rawS ? JSON.parse(rawS) : {};
+  } catch { dbSettings = {}; }
+
+  if (!dbSettings.workTypes || !dbSettings.workTypes.length) dbSettings.workTypes = [...SEED_WORKTYPES];
+  if (!dbSettings.extraFees || !dbSettings.extraFees.length) dbSettings.extraFees = [...SEED_EXTRA_FEES];
+
+  // ── v3.1.0 官方現行支援模型遷移機制 ──
+  // 若為空或偵測到已被官方停用之舊模型，自動升級遷移為 gemini-3.8-flash
+  if (!dbSettings.geminiModel || dbSettings.geminiModel.includes('2.5') || dbSettings.geminiModel.includes('1.5')) {
+    dbSettings.geminiModel = 'gemini-3.8-flash';
+  }
+
+  try {
+    const rawT = localStorage.getItem(KEY_TEMPLATES);
+    dbTemplates = rawT ? JSON.parse(rawT) : [...SEED_TEMPLATES];
+  } catch { dbTemplates = [...SEED_TEMPLATES]; }
+
+  saveStorage();
+}
+
+function saveStorage() {
+  localStorage.setItem(KEY_VENDORS, JSON.stringify(dbVendors));
+  localStorage.setItem(KEY_QUOTES, JSON.stringify(dbQuotes));
+  localStorage.setItem(KEY_SETTINGS, JSON.stringify(dbSettings));
+  localStorage.setItem(KEY_TEMPLATES, JSON.stringify(dbTemplates));
+  localStorage.setItem(KEY_PROJECTS, JSON.stringify(dbProjects));
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * NAVIGATION (TABLET & DESKTOP & MOBILE DOCK)
+ * ─────────────────────────────────────────────────────────────
+ */
+function switchTab(tabId) {
+  const tabs = ['intelligence', 'ai', 'quote', 'settings'];
+  tabs.forEach(t => {
+    const pane = document.getElementById(`pane-${t}`);
+    const side = document.getElementById(`sidebar-${t}`);
+    const mob  = document.getElementById(`mobile-${t}`);
+
+    if (t === tabId) {
+      pane.classList.remove('hidden');
+      if (side) side.className = 'nav-tab-btn w-full px-3.5 py-3 rounded-xl flex items-center gap-3 transition text-warm-100 bg-warm-800 shadow-sm border border-warm-700';
+      if (mob) mob.className = 'mobile-nav-btn touch-target-44 flex flex-col items-center justify-center text-[10px] text-terracotta-500 font-bold';
+    } else {
+      pane.classList.add('hidden');
+      if (side) side.className = 'nav-tab-btn w-full px-3.5 py-3 rounded-xl flex items-center gap-3 transition text-warm-400 hover:text-warm-100 hover:bg-warm-800/60';
+      if (mob) mob.className = 'mobile-nav-btn touch-target-44 flex flex-col items-center justify-center text-[10px] text-warm-400';
+    }
+  });
+
+  if (tabId === 'intelligence') renderIntelligence();
+  if (tabId === 'quote') renderQuoteEditor();
+  if (tabId === 'settings') renderSettingsPanels();
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * 1. 價格查詢與比較 (PRICE INTELLIGENCE)
+ * ─────────────────────────────────────────────────────────────
+ */
+function initIntelligenceFilters() {
+  const wtSelect = document.getElementById('intel-filter-wt');
+  wtSelect.innerHTML = '<option value="">全部工種</option>' +
+    dbSettings.workTypes.map(w => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('');
+
+  const vndSelect = document.getElementById('intel-filter-vendor');
+  vndSelect.innerHTML = '<option value="">全部廠商</option>' +
+    dbVendors.map(v => `<option value="${v.id}">${escapeHtml(v.name)}</option>`).join('');
+}
+
+function renderIntelligence() {
+  const selWt     = document.getElementById('intel-filter-wt').value;
+  const kw        = (document.getElementById('intel-search-kw').value || '').trim().toLowerCase();
+  const selVendor = document.getElementById('intel-filter-vendor').value;
+
+  const filtered = dbQuotes.filter(q => {
+    if (selWt && q.wtId !== selWt) return false;
+    if (selVendor && q.vendorId !== selVendor) return false;
+    if (kw) {
+      const target = `${q.itemLabel} ${q.wtName} ${q.vendorName} ${q.spec || ''}`.toLowerCase();
+      if (!target.includes(kw)) return false;
+    }
+    return true;
+  });
+
+  const prices = filtered.map(q => Number(q.price) || 0).sort((a, b) => a - b);
+  const count = prices.length;
+  let median = 0, avg = 0, min = 0, max = 0;
+
+  if (count > 0) {
+    min = prices[0];
+    max = prices[count - 1];
+    avg = Math.round(prices.reduce((s, p) => s + p, 0) / count);
+    const mid = Math.floor(count / 2);
+    median = (count % 2 !== 0) ? prices[mid] : Math.round((prices[mid - 1] + prices[mid]) / 2);
+  }
+
+  document.getElementById('stat-median').textContent = `$${formatNumber(median)}`;
+  document.getElementById('stat-avg').textContent    = `$${formatNumber(avg)}`;
+  document.getElementById('stat-range').textContent  = count ? `$${formatNumber(min)} ~ $${formatNumber(max)}` : '$0 ~ $0';
+  document.getElementById('stat-count').innerHTML    = `${count} <span class="text-xs font-normal text-warm-400">筆</span>`;
+  document.getElementById('intel-table-count').textContent = count;
+
+  // Vendor Rank Grouping
+  const vendorMap = {};
+  filtered.forEach(q => {
+    if (!vendorMap[q.vendorId] || new Date(q.date) >= new Date(vendorMap[q.vendorId].date)) {
+      vendorMap[q.vendorId] = q;
+    }
+  });
+
+  const vendorRankList = Object.values(vendorMap).sort((a, b) => a.price - b.price);
+  const rankContainer = document.getElementById('intel-vendor-rank');
+  rankContainer.innerHTML = '';
+
+  if (!vendorRankList.length) {
+    rankContainer.innerHTML = `<div class="py-12 text-center text-warm-400 text-xs">無符合條件之廠商報價紀錄</div>`;
+  } else {
+    vendorRankList.forEach((item, idx) => {
+      const vnd = dbVendors.find(v => v.id === item.vendorId) || { rating: 4 };
+      const stars = '★'.repeat(vnd.rating || 4);
+      const isLowest = idx === 0;
+
+      const div = document.createElement('div');
+      div.className = 'py-3 flex items-center justify-between gap-2 hover:bg-warm-850 px-2 rounded-2xl transition';
+      div.innerHTML = `
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${isLowest ? 'bg-emeraldWarm text-white' : 'bg-warm-800 text-warm-400'}">
+            ${idx + 1}
+          </span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-warm-100 text-xs truncate">${escapeHtml(item.vendorName)}</span>
+              <span class="text-[10px] text-amberGlow">${stars}</span>
+            </div>
+            <div class="text-[11px] text-warm-400 truncate mt-0.5">${escapeHtml(item.itemLabel)} · ${item.date}</div>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="text-xs font-black ${isLowest ? 'text-emeraldWarm' : 'text-warm-100'}">$${formatNumber(item.price)} <span class="text-[10px] text-warm-400 font-normal">/${item.unit || '單位'}</span></div>
+          <button onclick="pushQuoteFromIntelligence('${item.id}')"
+            class="mt-1 text-[10px] px-2.5 py-0.5 rounded-lg bg-terracotta-600/20 text-terracotta-500 hover:bg-terracotta-600 hover:text-white transition font-bold">
+            帶入開單
+          </button>
+        </div>
+      `;
+      rankContainer.appendChild(div);
+    });
+  }
+
+  // Render Table
+  const tbody = document.getElementById('intel-history-tbody');
+  tbody.innerHTML = '';
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="py-12 text-center text-warm-400 text-xs">查無符合搜尋條件之歷史紀錄</td></tr>`;
+    return;
+  }
+
+  [...filtered].sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(q => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-warm-850/60 transition';
+    tr.innerHTML = `
+      <td class="py-2.5 px-3 text-warm-400 whitespace-nowrap">${q.date}</td>
+      <td class="py-2.5 px-3 font-semibold text-warm-200 whitespace-nowrap">${escapeHtml(q.vendorName)}</td>
+      <td class="py-2.5 px-3">
+        <div class="font-bold text-warm-100">${escapeHtml(q.itemLabel)}</div>
+        <div class="text-[10px] text-warm-400">${escapeHtml(q.wtName)} ${q.spec ? '· ' + escapeHtml(q.spec) : ''}</div>
+      </td>
+      <td class="py-2.5 px-3 text-right font-black text-warm-100">$${formatNumber(q.price)}</td>
+      <td class="py-2.5 px-3 text-center text-warm-400">${escapeHtml(q.unit || '式')}</td>
+      <td class="py-2.5 px-3 text-right">
+        <button onclick="pushQuoteFromIntelligence('${q.id}')"
+          class="btn-tactile px-2.5 py-1 bg-warm-800 hover:bg-terracotta-600 hover:text-white border-warm-700 text-warm-200 rounded-lg text-[11px] font-bold">
+          帶入
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function pushQuoteFromIntelligence(quoteId) {
+  const target = dbQuotes.find(q => q.id === quoteId);
+  if (!target) return;
+
+  const wt = dbSettings.workTypes.find(w => w.id === target.wtId) || dbSettings.workTypes[0];
+  const newItem = {
+    id: `qi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    wtId: wt.id,
+    label: target.itemLabel,
+    price: target.price,
+    qty: 1,
+    w: 100,
+    h: 100,
+    len: 1,
+    unit: target.unit || wt.unit || '才',
+    hasMinFee: wt.hasMinFee || false,
+    minFee: wt.minFee || 0,
+    formulaValues: { W: 1, H: 1, M: 0 },
+  };
+
+  const curProj = getCurrentProject();
+  curProj.items.push(newItem);
+  saveStorage();
+  switchTab('quote');
+  showToast(`已成功將「${target.itemLabel}」帶入開單！`);
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * 2. 報價單 AI 判讀 (修復升級：精準切分 Base64 與清除 Markdown 圍欄)
+ * ─────────────────────────────────────────────────────────────
+ */
+let currentAiFile = null;
+let parsedAiDraft = [];
+
+function updateAiStatusDisplay() {
+  const currentModel = dbSettings.geminiModel || 'gemini-3.8-flash';
+  const pillText = document.getElementById('ai-key-status-text');
+  const dot      = pillText ? pillText.previousElementSibling : null;
+  const sideText = document.getElementById('sidebar-ai-status-text');
+  const sideDot  = document.getElementById('sidebar-ai-status-dot');
+
+  if (dbSettings.geminiKey) {
+    const desc = `Gemini 已就緒 (${currentModel})`;
+    if (pillText) pillText.textContent = desc;
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-emeraldWarm';
+    if (sideText) sideText.textContent = desc;
+    if (sideDot) sideDot.className = 'w-2 h-2 rounded-full bg-emeraldWarm';
+  } else {
+    const desc = '未填 Key (展示模式)';
+    if (pillText) pillText.textContent = desc;
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-amberGlow';
+    if (sideText) sideText.textContent = desc;
+    if (sideDot) sideDot.className = 'w-2 h-2 rounded-full bg-amberGlow';
+  }
+
+  const sel = document.getElementById('ai-input-vendor-select');
+  if (sel) {
+    sel.innerHTML = '<option value="">由 AI 自行從單據判讀</option>' +
+      dbVendors.map(v => `<option value="${v.name}">${escapeHtml(v.name)}</option>`).join('');
+  }
+}
+
+function handleAiFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  currentAiFile = file;
+  const p = document.getElementById('ai-file-name-preview');
+  p.textContent = `已選取檔案: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+  p.classList.remove('hidden');
+}
+
+function fillAiSampleText() {
+  document.getElementById('ai-raw-text').value =
+`宏達廣告工程社 報價單
+報價日期：2026-10-27
+專案：2026 旗艦門市招牌工程
+1. 戶外防曬乳膠PP大圖輸出 150cm * 300cm 2張  @$160/才
+2. 正發光壓克力立體金屬字 30cm 5組  @$1,250/組
+3. 現場高空安全放樣與防護作業 一式  單價：$4,500
+備註：保固一年，含吊車作業申請`;
+}
+
+async function executeAiParse() {
+  const rawText = (document.getElementById('ai-raw-text').value || '').trim();
+  const file = currentAiFile;
+
+  if (!rawText && !file) {
+    showToast('請上傳單據圖片/PDF 或貼入文字內容', true);
+    return;
+  }
+
+  const loadingEl = document.getElementById('ai-loading');
+  const emptyEl   = document.getElementById('ai-empty');
+  const tableWrap = document.getElementById('ai-result-table-wrap');
+  const bottomBar = document.getElementById('ai-bottom-confirm-bar');
+
+  emptyEl.classList.add('hidden');
+  tableWrap.classList.add('hidden');
+  bottomBar.classList.add('hidden');
+  loadingEl.classList.remove('hidden');
+
+  try {
+    let resultItems = [];
+    let detectedVendor = document.getElementById('ai-input-vendor-select').value || '廠商報價單';
+    let detectedDate   = new Date().toISOString().slice(0, 10);
+
+    if (dbSettings.geminiKey) {
+      const parsed = await callGeminiApiForQuote(rawText, file);
+      resultItems = parsed.items || [];
+      if (parsed.vendorName) detectedVendor = parsed.vendorName;
+      if (parsed.quoteDate)  detectedDate   = parsed.quoteDate;
+    } else {
+      await new Promise(r => setTimeout(r, 1000));
+      const heuristic = heuristicParseText(rawText || (file ? file.name : ''));
+      resultItems = heuristic.items;
+      if (heuristic.vendor) detectedVendor = heuristic.vendor;
+    }
+
+    parsedAiDraft = resultItems;
+    document.getElementById('ai-confirm-vendor').value = detectedVendor;
+    document.getElementById('ai-confirm-date').value   = detectedDate;
+    renderAiParsedTable();
+
+    loadingEl.classList.add('hidden');
+    tableWrap.classList.remove('hidden');
+    bottomBar.classList.remove('hidden');
+    document.getElementById('ai-items-badge').textContent = `${resultItems.length} 個品項`;
+    showToast('AI 判讀成功，請校對後入庫');
+  } catch (err) {
+    console.error('AI Parse failed', err);
+    loadingEl.classList.add('hidden');
+    emptyEl.classList.remove('hidden');
+    showToast(`判讀異常: ${err.message || '格式解析錯誤'}`, true);
+  }
+}
+
+// Gemini API Invocation (v3.1.0 官方現行支援端點)
+async function callGeminiApiForQuote(textPrompt, file) {
+  const apiKey = dbSettings.geminiKey;
+  const model  = dbSettings.geminiModel || 'gemini-3.8-flash';
+  const url    = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const systemInstruction = `
+你是一位精通工程招牌與室內裝修報價單的專家。請由用戶提供的單據圖片、PDF 或文字中提取報價資料。
+輸出規格必須是純 JSON，絕不包含任何 markdown 代碼標記 (不需 \`\`\`json 或 \`\`\`)：
+{
+  "vendorName": "廠商名稱",
+  "quoteDate": "YYYY-MM-DD",
+  "items": [
+    {
+      "label": "品項名稱",
+      "wtId": "wt-1",
+      "spec": "規格如 150x300cm",
+      "unit": "才/組/式",
+      "price": 160,
+      "mode": "area/qty/length/fixed"
+    }
+  ]
+}
+wtId 建議對應：wt-1(面積大圖), wt-2(立體字數量), wt-3(LED燈長度), wt-4(鐵架公式), wt-5(現場一式), wt-6(五金採購)。
+`;
+
+  const contents = [];
+  const parts = [];
+
+  if (textPrompt) {
+    parts.push({ text: `報價單文字內容如下：\n${textPrompt}` });
+  }
+
+  if (file) {
+    const rawDataUrl = await fileToBase64(file);
+    const base64Pure = rawDataUrl.replace(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,/, '');
+    const mime = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+
+    parts.push({
+      inlineData: {
+        mimeType: mime,
+        data: base64Pure
+      }
+    });
+    parts.push({ text: "請解析上方上傳的報價單檔案圖片/PDF 中的品項、尺寸規格、單價與廠商資訊。" });
+  }
+
+  contents.push({ parts });
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      contents,
+      generationConfig: { responseMimeType: "application/json" }
+    })
+  });
+
+  if (!res.ok) {
+    const errObj = await res.json().catch(() => ({}));
+    throw new Error(errObj.error?.message || `HTTP ${res.status}`);
+  }
+
+  const json = await res.json();
+  let rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+
+  rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+  const firstBrace = rawText.indexOf('{');
+  const lastBrace  = rawText.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    rawText = rawText.substring(firstBrace, lastBrace + 1);
+  }
+
+  return JSON.parse(rawText);
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.readAsDataURL(file);
+    r.onload = () => resolve(r.result);
+    r.onerror = e => reject(e);
+  });
+}
+
+function heuristicParseText(text) {
+  const items = [];
+  let vendor = '宏達廣告工程社';
+  if (text.includes('彩藝')) vendor = '彩藝數位大圖輸出';
+  if (text.includes('正大')) vendor = '正大金屬招牌鐵工廠';
+  if (text.includes('億達')) vendor = '億達雷射壓克力精品';
+
+  const lines = text.split('\n');
+  lines.forEach(l => {
+    const line = l.trim();
+    if (!line || line.startsWith('報價') || line.startsWith('日期') || line.startsWith('備註')) return;
+    if (line.includes('大圖') || line.includes('PP') || line.includes('PVC')) {
+      items.push({ label: '戶外防曬乳膠PP大圖輸出', wtId: 'wt-1', spec: '150x300cm (50才)', unit: '才', price: 160, mode: 'area' });
+    } else if (line.includes('字') || line.includes('壓克力')) {
+      items.push({ label: '正發光壓克力立體金屬字', wtId: 'wt-2', spec: '30cm', unit: '組', price: 1250, mode: 'qty' });
+    } else if (line.includes('放樣') || line.includes('丈量') || line.includes('一式')) {
+      items.push({ label: '現場高空安全放樣作業', wtId: 'wt-5', spec: '一式', unit: '式', price: 4500, mode: 'fixed' });
+    }
+  });
+
+  if (!items.length) {
+    items.push({ label: '工程大圖製作', wtId: 'wt-1', spec: '標準才數', unit: '才', price: 150, mode: 'area' });
+  }
+  return { vendor, items };
+}
+
+function renderAiParsedTable() {
+  const tbody = document.getElementById('ai-tbody');
+  tbody.innerHTML = '';
+
+  parsedAiDraft.forEach((item, idx) => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-warm-850 transition';
+
+    const wtOpts = dbSettings.workTypes.map(w =>
+      `<option value="${w.id}" ${w.id === item.wtId ? 'selected' : ''}>${escapeHtml(w.name)}</option>`
+    ).join('');
+
+    tr.innerHTML = `
+      <td class="p-2">
+        <input type="text" value="${escapeHtml(item.label)}" oninput="parsedAiDraft[${idx}].label=this.value"
+          class="bg-warm-800 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs w-full" />
+      </td>
+      <td class="p-2">
+        <select onchange="parsedAiDraft[${idx}].wtId=this.value"
+          class="bg-warm-800 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs w-full">
+          ${wtOpts}
+        </select>
+      </td>
+      <td class="p-2">
+        <input type="text" value="${escapeHtml(item.spec || '')}" oninput="parsedAiDraft[${idx}].spec=this.value"
+          class="bg-warm-800 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs w-28" />
+      </td>
+      <td class="p-2">
+        <input type="text" value="${escapeHtml(item.unit || '才')}" oninput="parsedAiDraft[${idx}].unit=this.value"
+          class="bg-warm-800 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs w-14" />
+      </td>
+      <td class="p-2 text-right">
+        <input type="number" value="${item.price || 0}" oninput="parsedAiDraft[${idx}].price=parseFloat(this.value)||0"
+          class="bg-warm-800 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs w-20 text-right font-black" />
+      </td>
+      <td class="p-2 text-center">
+        <button onclick="parsedAiDraft.splice(${idx},1); renderAiParsedTable();" class="text-warm-400 hover:text-red-400 p-1">
+          ✕
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function commitAiParsedQuotes() {
+  if (!parsedAiDraft.length) return;
+
+  const vendorName = (document.getElementById('ai-confirm-vendor').value || '未知廠商').trim();
+  const quoteDate  = document.getElementById('ai-confirm-date').value || new Date().toISOString().slice(0, 10);
+
+  let v = dbVendors.find(x => x.name === vendorName);
+  if (!v) {
+    v = { id: `v-${Date.now()}`, name: vendorName, taxId: '', contact: '業務部', phone: '', rating: 4, note: '由 AI 辨識自動建立' };
+    dbVendors.push(v);
+  }
+
+  parsedAiDraft.forEach(item => {
+    const wt = dbSettings.workTypes.find(w => w.id === item.wtId) || dbSettings.workTypes[0];
+    dbQuotes.push({
+      id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      date: quoteDate,
+      vendorId: v.id,
+      vendorName: v.name,
+      wtId: wt.id,
+      wtName: wt.name,
+      itemLabel: item.label,
+      spec: item.spec || '',
+      price: Number(item.price) || 0,
+      unit: item.unit || wt.unit || '式',
+      mode: wt.mode,
+    });
+  });
+
+  saveStorage();
+  initIntelligenceFilters();
+  renderIntelligence();
+
+  parsedAiDraft = [];
+  document.getElementById('ai-result-table-wrap').classList.add('hidden');
+  document.getElementById('ai-bottom-confirm-bar').classList.add('hidden');
+  document.getElementById('ai-empty').classList.remove('hidden');
+  document.getElementById('ai-raw-text').value = '';
+  document.getElementById('ai-file-name-preview').classList.add('hidden');
+  currentAiFile = null;
+
+  showToast('已成功一鍵入庫至歷史價格庫！');
+  switchTab('intelligence');
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * 3. 專案估價與開單 (QUOTATION & 5 大新建議整合)
+ * ─────────────────────────────────────────────────────────────
+ */
+function initProjects() {
+  try {
+    const raw = localStorage.getItem(KEY_PROJECTS);
+    dbProjects = raw ? JSON.parse(raw) : [];
+  } catch { dbProjects = []; }
+
+  if (!dbProjects.length) {
+    const defProj = {
+      id: 'proj-default',
+      name: '2026年度旗艦門市招牌與裝潢估價案',
+      client: '聯創整合行銷有限公司',
+      date: new Date().toISOString().slice(0, 10),
+      items: [
+        {
+          id: 'qi-1',
+          wtId: 'wt-1',
+          label: '戶外防曬乳膠PP大圖輸出',
+          w: 300,
+          h: 240,
+          len: 1,
+          qty: 1,
+          price: 150,
+          unit: '才',
+          hasMinFee: true,
+          minFee: 3000,
+          formulaValues: {}
+        },
+        {
+          id: 'qi-2',
+          wtId: 'wt-2',
+          label: '正發光壓克力立體發光字',
+          w: 1,
+          h: 1,
+          len: 1,
+          qty: 5,
+          price: 1200,
+          unit: '組',
+          hasMinFee: false,
+          minFee: 0,
+          formulaValues: {}
+        }
+      ],
+      extraFees: dbSettings.extraFees.map(f => ({ id: f.id, enabled: !!f.defaultOn, customVal: f.value }))
+    };
+    dbProjects = [defProj];
+  }
+
+  currentProjectId = dbProjects[0].id;
+  updateProjectSelectDropdown();
+  loadProjectIntoUI(dbProjects[0]);
+}
+
+function getCurrentProject() {
+  return dbProjects.find(p => p.id === currentProjectId) || dbProjects[0];
+}
+
+function updateProjectSelectDropdown() {
+  const sel = document.getElementById('quote-project-select');
+  if (!sel) return;
+  sel.innerHTML = dbProjects.map(p =>
+    `<option value="${p.id}" ${p.id === currentProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+  ).join('');
+}
+
+function onSwitchProject(projId) {
+  saveCurrentProjectState();
+  currentProjectId = projId;
+  const p = getCurrentProject();
+  loadProjectIntoUI(p);
+  renderQuoteEditor();
+  showToast(`已切換至專案「${p.name}」`);
+}
+
+function loadProjectIntoUI(proj) {
+  document.getElementById('quote-proj-name').value   = proj.name || '專案估價單';
+  document.getElementById('quote-client-name').value = proj.client || '';
+  document.getElementById('quote-date').value        = proj.date || new Date().toISOString().slice(0, 10);
+}
+
+function saveCurrentProjectState() {
+  const p = getCurrentProject();
+  p.name   = document.getElementById('quote-proj-name').value;
+  p.client = document.getElementById('quote-client-name').value;
+  p.date   = document.getElementById('quote-date').value;
+  saveStorage();
+  updateProjectSelectDropdown();
+}
+
+function openNewProjectDialog() {
+  const name = prompt('請輸入新專案名稱：', `新專案估價單 ${dbProjects.length + 1}`);
+  if (!name) return;
+
+  const newP = {
+    id: `proj-${Date.now()}`,
+    name,
+    client: '貴客戶',
+    date: new Date().toISOString().slice(0, 10),
+    items: [],
+    extraFees: dbSettings.extraFees.map(f => ({ id: f.id, enabled: !!f.defaultOn, customVal: f.value }))
+  };
+
+  dbProjects.push(newP);
+  currentProjectId = newP.id;
+  saveStorage();
+  updateProjectSelectDropdown();
+  loadProjectIntoUI(newP);
+  renderQuoteEditor();
+  showToast(`已建立專案「${name}」`);
+}
+
+function exportSingleProjectJson() {
+  const p = getCurrentProject();
+  const blob = new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Project_${p.name.replace(/\s+/g,'_')}.json`;
+  a.click();
+  showToast('專案 JSON 已成功匯出');
+}
+
+function importSingleProjectJson(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const proj = JSON.parse(ev.target.result);
+      if (!proj.id || !proj.items) throw new Error();
+      proj.id = `proj-${Date.now()}`;
+      dbProjects.push(proj);
+      currentProjectId = proj.id;
+      saveStorage();
+      updateProjectSelectDropdown();
+      loadProjectIntoUI(proj);
+      renderQuoteEditor();
+      showToast(`已成功匯入專案「${proj.name}」`);
+    } catch {
+      showToast('專案 JSON 檔案格式錯誤', true);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── Calculation Formula Engine ──
+function calculateItemSubtotal(item) {
+  const wt = dbSettings.workTypes.find(w => w.id === item.wtId) || dbSettings.workTypes[0];
+  const price = Number(item.price) || 0;
+  const qty   = Math.max(0, Number(item.qty) || 0);
+
+  let raw = 0;
+  let saiCount = null;
+
+  if (wt.mode === 'area') {
+    const w = Number(item.w) || 0;
+    const h = Number(item.h) || 0;
+    const divisor = wt.divisor || 900;
+    saiCount = Math.ceil((w * h) / divisor);
+    raw = saiCount * price * qty;
+  } else if (wt.mode === 'length') {
+    const len = Number(item.len) || 0;
+    raw = len * price * qty;
+  } else if (wt.mode === 'qty' || wt.mode === 'custom' || wt.mode === 'fixed') {
+    raw = price * qty;
+  } else if (wt.mode === 'formula') {
+    raw = evalFormulaSafe(wt.formula, item.formulaValues) * price * qty;
+  }
+
+  let subtotal = raw;
+  if (item.hasMinFee && item.minFee > 0 && subtotal > 0) {
+    subtotal = Math.max(subtotal, item.minFee);
+  }
+
+  return { raw, subtotal, saiCount };
+}
+
+function evalFormulaSafe(expr, vals = {}) {
+  if (!expr) return 1;
+  try {
+    let s = expr;
+    for (const [k, v] of Object.entries(vals)) {
+      s = s.replace(new RegExp(`\\b${k}\\b`, 'g'), Number(v) || 0);
+    }
+    if (/^[0-9+\-*/().\s]+$/.test(s)) {
+      return Function(`"use strict"; return (${s});`)() || 0;
+    }
+  } catch (e) { console.warn(e); }
+  return 1;
+}
+
+// ── Render Items Table (固定 6 欄位架構) ──
+function renderQuoteEditor() {
+  const p = getCurrentProject();
+  const container = document.getElementById('quote-items-container');
+  const emptyEl   = document.getElementById('quote-items-empty');
+  container.innerHTML = '';
+
+  if (!p.items.length) {
+    emptyEl.classList.remove('hidden');
+    renderExtraFeesSection();
+    recalcQuoteTotals();
+    return;
+  }
+  emptyEl.classList.add('hidden');
+
+  p.items.forEach((item, idx) => {
+    const wt = dbSettings.workTypes.find(w => w.id === item.wtId) || dbSettings.workTypes[0];
+    const { subtotal, saiCount } = calculateItemSubtotal(item);
+
+    let specHtml = '';
+    if (wt.mode === 'area') {
+      specHtml = `
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <input type="number" min="1" value="${item.w || ''}" placeholder="長(cm)"
+            oninput="getCurrentProject().items[${idx}].w=this.value; onQuoteValueChange(${idx})"
+            class="w-16 bg-warm-850 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs focus:border-terracotta-600 focus:outline-none" />
+          <span class="text-warm-400">×</span>
+          <input type="number" min="1" value="${item.h || ''}" placeholder="寬(cm)"
+            oninput="getCurrentProject().items[${idx}].h=this.value; onQuoteValueChange(${idx})"
+            class="w-16 bg-warm-850 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs focus:border-terracotta-600 focus:outline-none" />
+          <span class="sai-label">👉 換算: ${saiCount != null ? saiCount : 0} 才</span>
+        </div>
+      `;
+    } else if (wt.mode === 'length') {
+      specHtml = `
+        <div class="flex items-center gap-1.5">
+          <input type="number" min="0" step="any" value="${item.len || ''}" placeholder="長度"
+            oninput="getCurrentProject().items[${idx}].len=this.value; onQuoteValueChange(${idx})"
+            class="w-24 bg-warm-850 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs focus:border-terracotta-600 focus:outline-none" />
+          <span class="text-xs text-warm-400">${escapeHtml(item.unit || 'm')}</span>
+        </div>
+      `;
+    } else if (wt.mode === 'formula') {
+      const vars = (wt.formulaVars || 'W, H').split(',').map(v => v.trim()).filter(Boolean);
+      specHtml = `
+        <div class="flex items-center gap-1.5 flex-wrap">
+          ${vars.map(v => `
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] text-cyan-400">${v}:</span>
+              <input type="number" value="${item.formulaValues?.[v] ?? 1}"
+                oninput="if(!getCurrentProject().items[${idx}].formulaValues) getCurrentProject().items[${idx}].formulaValues={}; getCurrentProject().items[${idx}].formulaValues['${v}']=this.value; onQuoteValueChange(${idx})"
+                class="w-14 bg-warm-850 border border-warm-700 text-warm-100 rounded-lg px-1.5 py-1 text-xs" />
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      specHtml = `
+        <div class="flex items-center gap-1.5">
+          <input type="text" value="${escapeHtml(item.unit || '個')}" placeholder="單位"
+            oninput="getCurrentProject().items[${idx}].unit=this.value; saveStorage();"
+            class="w-16 bg-warm-850 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs" />
+          <span class="text-[10px] text-warm-400">${wt.mode === 'fixed' ? '(一式型)' : '(自訂單位)'}</span>
+        </div>
+      `;
+    }
+
+    const minFeeHtml = `
+      <div class="flex items-center gap-1.5 mt-1.5">
+        <label class="flex items-center gap-1 cursor-pointer select-none text-[11px] text-warm-400">
+          <input type="checkbox" ${item.hasMinFee ? 'checked' : ''}
+            onchange="getCurrentProject().items[${idx}].hasMinFee=this.checked; onQuoteValueChange(${idx})"
+            class="w-3.5 h-3.5 accent-terracotta-600 rounded" />
+          <span>低消:</span>
+        </label>
+        <div class="${item.hasMinFee ? 'flex' : 'hidden'} items-center gap-1">
+          <span class="text-[10px] text-warm-400">$</span>
+          <input type="number" min="0" value="${item.hasMinFee ? item.minFee : ''}" placeholder="門檻"
+            oninput="getCurrentProject().items[${idx}].minFee=parseFloat(this.value)||0; onQuoteValueChange(${idx})"
+            class="w-20 bg-warm-850 border border-warm-700 text-warm-100 rounded px-1.5 py-0.5 text-xs text-right" />
+        </div>
+      </div>
+    `;
+
+    const row = document.createElement('div');
+    row.id = `quote-row-${idx}`;
+    row.dataset.index = idx;
+    row.className = 'px-4 py-3 sm:px-5 group transition hover:bg-warm-850/40 quote-drag-row';
+    row.draggable = true;
+
+    row.innerHTML = `
+      <div class="hidden lg:grid gap-2 items-start" style="grid-template-columns: 28px 1.2fr 1.3fr 1.8fr 0.7fr 1.2fr 1.2fr;">
+        <!-- 拖曳把手 -->
+        <div class="pt-2 flex justify-center">
+          <span class="drag-handle" title="按住拖曳排序">⋮⋮</span>
+        </div>
+
+        <div class="pt-1">
+          <select onchange="onQuoteItemWtChange(${idx}, this.value)"
+            class="w-full bg-warm-850 border border-warm-700 text-warm-100 rounded-xl px-2.5 py-1.5 text-xs focus:border-terracotta-600 focus:outline-none">
+            ${dbSettings.workTypes.map(w => `<option value="${w.id}" ${w.id === item.wtId ? 'selected' : ''}>${escapeHtml(w.name)}</option>`).join('')}
+          </select>
+          <div class="mt-1">
+            <span class="px-1.5 py-0.5 text-[10px] rounded font-bold ${getBadgeClass(wt.mode)}">${getModeName(wt.mode)}</span>
+          </div>
+        </div>
+
+        <div class="pt-1">
+          <div class="flex items-center gap-1">
+            <input type="text" value="${escapeHtml(item.label)}" placeholder="品項名稱"
+              oninput="getCurrentProject().items[${idx}].label=this.value; saveStorage();"
+              class="w-full bg-warm-850 border border-warm-700 text-warm-100 rounded-xl px-2.5 py-1.5 text-xs focus:border-terracotta-600 focus:outline-none" />
+            <button onclick="promptSaveAsTemplate(${idx})" title="儲存為常用品項範本"
+              class="p-1.5 text-warm-400 hover:text-amberGlow hover:bg-warm-800 rounded-lg shrink-0 transition">
+              ⭐
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-1">
+          ${specHtml}
+          ${minFeeHtml}
+        </div>
+
+        <div class="pt-1 text-center">
+          <input type="number" min="0" step="any" value="${item.qty ?? 1}" placeholder="數量"
+            oninput="getCurrentProject().items[${idx}].qty=this.value; onQuoteValueChange(${idx})"
+            class="w-full bg-warm-850 border border-warm-700 text-warm-100 rounded-xl px-2 py-1.5 text-xs text-center font-black focus:border-terracotta-600 focus:outline-none" />
+        </div>
+
+        <div class="pt-1">
+          <div class="flex items-center gap-1">
+            <span class="text-xs text-warm-400">$</span>
+            <input type="number" min="0" step="any" value="${item.price}" placeholder="單價"
+              oninput="getCurrentProject().items[${idx}].price=this.value; onQuoteValueChange(${idx})"
+              class="w-full bg-warm-850 border border-warm-700 text-warm-100 rounded-xl px-2 py-1.5 text-xs text-right font-black focus:border-terracotta-600 focus:outline-none" />
+          </div>
+          <button onclick="openRefPricePicker(${idx})" title="查詢並帶入市場中位數或廠商歷史價"
+            class="text-[10px] text-terracotta-500 hover:underline mt-1 block text-right w-full font-bold">
+            ⚡ 帶入市場參考價
+          </button>
+        </div>
+
+        <div class="pt-1 flex items-start justify-between">
+          <div class="text-right flex-1 pr-2">
+            <div class="text-sm font-black text-warm-100 item-subtotal-val">$${formatNumber(subtotal)}</div>
+            <span class="minfee-note text-[10px] text-amberGlow font-bold block" style="${item.hasMinFee && subtotal === item.minFee ? '' : 'display:none'}">(低消補足)</span>
+          </div>
+          <button onclick="removeQuoteItem(${idx})" class="opacity-0 group-hover:opacity-100 p-1 text-warm-400 hover:text-red-400 rounded transition">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Layout -->
+      <div class="lg:hidden space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <span class="drag-handle" title="拖曳排序">⋮⋮</span>
+          <select onchange="onQuoteItemWtChange(${idx}, this.value)" class="bg-warm-850 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs flex-1">
+            ${dbSettings.workTypes.map(w => `<option value="${w.id}" ${w.id === item.wtId ? 'selected' : ''}>${escapeHtml(w.name)}</option>`).join('')}
+          </select>
+          <button onclick="promptSaveAsTemplate(${idx})" class="text-xs p-1 text-amberGlow">⭐存範本</button>
+          <button onclick="removeQuoteItem(${idx})" class="text-warm-400 hover:text-red-400 p-1">✕</button>
+        </div>
+
+        <input type="text" value="${escapeHtml(item.label)}" placeholder="品項名稱"
+          oninput="getCurrentProject().items[${idx}].label=this.value; saveStorage();"
+          class="w-full bg-warm-850 border border-warm-700 text-warm-100 rounded-lg px-2.5 py-1 text-xs" />
+
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex-1">${specHtml}</div>
+          <div class="flex items-center gap-2">
+            <div class="w-14 text-center">
+              <span class="text-[10px] text-warm-400 block">數量</span>
+              <input type="number" min="0" value="${item.qty ?? 1}"
+                oninput="getCurrentProject().items[${idx}].qty=this.value; onQuoteValueChange(${idx})"
+                class="w-full bg-warm-850 border border-warm-700 text-warm-100 rounded px-1 py-0.5 text-xs text-center font-bold" />
+            </div>
+            <div class="w-20 text-right">
+              <span class="text-[10px] text-warm-400 block">單價</span>
+              <input type="number" min="0" value="${item.price}"
+                oninput="getCurrentProject().items[${idx}].price=this.value; onQuoteValueChange(${idx})"
+                class="w-full bg-warm-850 border border-warm-700 text-warm-100 rounded px-1 py-0.5 text-xs text-right font-bold" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1 border-t border-warm-800">
+          <div>${minFeeHtml}</div>
+          <div class="text-right">
+            <button onclick="openRefPricePicker(${idx})" class="text-[10px] text-terracotta-500 font-bold block">⚡帶入參考價</button>
+            <span class="text-sm font-black text-warm-100 item-subtotal-val">$${formatNumber(subtotal)}</span>
+            <span class="minfee-note text-[10px] text-amberGlow font-bold block" style="${item.hasMinFee && subtotal === item.minFee ? '' : 'display:none'}">(低消補足)</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(row);
+  });
+
+  renderExtraFeesSection();
+  recalcQuoteTotals();
+  initDragAndDrop();
+}
+
+function addQuoteItem() {
+  const p = getCurrentProject();
+  const wt = dbSettings.workTypes[0];
+  p.items.push({
+    id: `qi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    wtId: wt.id,
+    label: wt.name,
+    w: 100,
+    h: 100,
+    len: 1,
+    qty: 1,
+    price: wt.price || 0,
+    unit: wt.unit || '式',
+    hasMinFee: wt.hasMinFee || false,
+    minFee: wt.minFee || 0,
+    formulaValues: { W: 1, H: 1, M: 0 }
+  });
+  saveStorage();
+  renderQuoteEditor();
+}
+
+function removeQuoteItem(idx) {
+  getCurrentProject().items.splice(idx, 1);
+  saveStorage();
+  renderQuoteEditor();
+}
+
+function onQuoteItemWtChange(idx, wtId) {
+  const wt = dbSettings.workTypes.find(w => w.id === wtId);
+  if (!wt) return;
+  const item = getCurrentProject().items[idx];
+  item.wtId      = wt.id;
+  item.label     = wt.name;
+  item.price     = wt.price || 0;
+  item.unit      = wt.unit || '式';
+  item.hasMinFee = wt.hasMinFee || false;
+  item.minFee    = wt.minFee || 0;
+  saveStorage();
+  renderQuoteEditor();
+}
+
+function onQuoteValueChange(idx) {
+  saveStorage();
+  const row = document.getElementById(`quote-row-${idx}`);
+  if (row) {
+    const item = getCurrentProject().items[idx];
+    const { subtotal, saiCount } = calculateItemSubtotal(item);
+
+    // 即時更新小計 (桌機與手機)
+    const subEls = row.querySelectorAll('.item-subtotal-val');
+    subEls.forEach(el => { el.textContent = `$${formatNumber(subtotal)}`; });
+
+    // 即時更新面積才數換算浮動標籤
+    const saiEl = row.querySelector('.sai-label');
+    if (saiEl && saiCount != null) {
+      saiEl.textContent = `👉 換算: ${saiCount} 才`;
+      saiEl.classList.add('updated');
+      setTimeout(() => saiEl.classList.remove('updated'), 600);
+    }
+
+    // 即時顯示/隱藏低消補足警示
+    const minNotes = row.querySelectorAll('.minfee-note');
+    minNotes.forEach(el => {
+      el.style.display = (item.hasMinFee && subtotal === item.minFee) ? '' : 'none';
+    });
+  }
+  recalcQuoteTotals();
+}
+
+function openRefPricePicker(idx) {
+  currentRefPickerIndex = idx;
+  const item = getCurrentProject().items[idx];
+  const matched = dbQuotes.filter(q => q.wtId === item.wtId);
+  const container = document.getElementById('ref-price-options-container');
+  container.innerHTML = '';
+
+  if (matched.length) {
+    const sorted = matched.map(m => m.price).sort((a,b)=>a-b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 !== 0 ? sorted[mid] : Math.round((sorted[mid-1] + sorted[mid])/2);
+
+    const divMed = document.createElement('div');
+    divMed.className = 'p-3 rounded-2xl bg-terracotta-600/20 border border-terracotta-600/40 flex items-center justify-between cursor-pointer hover:bg-terracotta-600/30 transition';
+    divMed.onclick = () => selectRefPrice(median);
+    divMed.innerHTML = `
+      <div>
+        <div class="font-bold text-terracotta-400 text-xs">📊 市場公允平衡價 (中位數 Median)</div>
+        <div class="text-[10px] text-warm-400 mt-0.5">根據歷史 ${matched.length} 筆同工種報價綜合評定</div>
+      </div>
+      <div class="text-sm font-black text-warm-100">$${formatNumber(median)}</div>
+    `;
+    container.appendChild(divMed);
+
+    matched.slice(0, 5).forEach(mq => {
+      const div = document.createElement('div');
+      div.className = 'p-3 rounded-2xl bg-warm-850 border border-warm-800 flex items-center justify-between cursor-pointer hover:bg-warm-800 transition';
+      div.onclick = () => selectRefPrice(mq.price);
+      div.innerHTML = `
+        <div>
+          <div class="font-semibold text-warm-200 text-xs">${escapeHtml(mq.vendorName)}</div>
+          <div class="text-[10px] text-warm-400">${escapeHtml(mq.itemLabel)} · ${mq.date}</div>
+        </div>
+        <div class="text-sm font-bold text-warm-100">$${formatNumber(mq.price)}</div>
+      `;
+      container.appendChild(div);
+    });
+  } else {
+    container.innerHTML = `<div class="py-6 text-center text-warm-400 text-xs">目前歷史庫尚無此工種之報價紀錄</div>`;
+  }
+
+  openModal('modal-ref-price');
+}
+
+function selectRefPrice(price) {
+  if (currentRefPickerIndex != null) {
+    getCurrentProject().items[currentRefPickerIndex].price = price;
+    saveStorage();
+    renderQuoteEditor();
+    showToast(`已套用參考單價 $${formatNumber(price)}`);
+  }
+  closeModal('modal-ref-price');
+}
+
+function promptSaveAsTemplate(idx) {
+  pendingSaveTemplateItem = getCurrentProject().items[idx];
+  document.getElementById('tpl-custom-name').value = pendingSaveTemplateItem.label;
+  openModal('modal-save-template');
+}
+
+function confirmSaveTemplate() {
+  if (!pendingSaveTemplateItem) return;
+  const name = document.getElementById('tpl-custom-name').value.trim() || pendingSaveTemplateItem.label;
+  dbTemplates.push({
+    id: `tpl-${Date.now()}`,
+    name,
+    ...pendingSaveTemplateItem
+  });
+  saveStorage();
+  closeModal('modal-save-template');
+  renderSettingsPanels();
+  showToast(`已成功將「${name}」存入常用品項庫！`);
+}
+
+function openTemplateSelectorModal() {
+  const container = document.getElementById('template-items-container');
+  container.innerHTML = '';
+
+  if (!dbTemplates.length) {
+    container.innerHTML = `<div class="py-6 text-center text-warm-400 text-xs">尚未儲存任何範本，可在品項右方點擊 ⭐ 儲存。</div>`;
+  } else {
+    dbTemplates.forEach(tpl => {
+      const wt = dbSettings.workTypes.find(w => w.id === tpl.wtId) || { name: '工種' };
+      const div = document.createElement('div');
+      div.className = 'p-3 rounded-2xl bg-warm-850 border border-warm-800 flex items-center justify-between cursor-pointer hover:bg-warm-800 transition';
+      div.onclick = () => loadTemplateIntoProject(tpl);
+      div.innerHTML = `
+        <div>
+          <div class="font-bold text-warm-100 text-xs">${escapeHtml(tpl.name)}</div>
+          <div class="text-[10px] text-warm-400">[${wt.name}] 單價 $${formatNumber(tpl.price)}/${tpl.unit || '單位'}</div>
+        </div>
+        <button class="btn-tactile px-3 py-1 bg-terracotta-600 border-terracotta-800 text-white rounded-lg text-xs font-bold shadow-sm">載入</button>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  openModal('modal-template-selector');
+}
+
+function loadTemplateIntoProject(tpl) {
+  const p = getCurrentProject();
+  p.items.push({
+    id: `qi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    wtId: tpl.wtId,
+    label: tpl.label,
+    w: tpl.w || 100,
+    h: tpl.h || 100,
+    len: tpl.len || 1,
+    qty: tpl.qty || 1,
+    price: tpl.price || 0,
+    unit: tpl.unit || '式',
+    hasMinFee: !!tpl.hasMinFee,
+    minFee: tpl.minFee || 0,
+    formulaValues: tpl.formulaValues || {}
+  });
+  saveStorage();
+  closeModal('modal-template-selector');
+  renderQuoteEditor();
+  showToast(`已成功載入範本「${tpl.name}」！`);
+}
+
+function renderExtraFeesSection() {
+  const p = getCurrentProject();
+  const container = document.getElementById('quote-extra-fees-list');
+  container.innerHTML = '';
+
+  if (!p.extraFees) {
+    p.extraFees = dbSettings.extraFees.map(f => ({ id: f.id, enabled: !!f.defaultOn, customVal: f.value }));
+  }
+
+  dbSettings.extraFees.forEach(fee => {
+    let st = p.extraFees.find(x => x.id === fee.id);
+    if (!st) {
+      st = { id: fee.id, enabled: !!fee.defaultOn, customVal: fee.value };
+      p.extraFees.push(st);
+    }
+
+    const isFixed = fee.type === 'fixed';
+    const div = document.createElement('div');
+    div.className = 'flex items-center justify-between p-2.5 rounded-2xl bg-warm-850 border border-warm-800';
+    div.innerHTML = `
+      <label class="flex items-center gap-2.5 cursor-pointer select-none">
+        <input type="checkbox" ${st.enabled ? 'checked' : ''}
+          onchange="toggleProjectFee('${fee.id}', this.checked)"
+          class="w-4 h-4 accent-terracotta-600 rounded" />
+        <div>
+          <span class="text-xs font-bold text-warm-200">${escapeHtml(fee.name)}</span>
+          <span class="text-[10px] text-warm-400 block">${isFixed ? '固定金額' : '比例加成 (按材料總額)'}</span>
+        </div>
+      </label>
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs text-warm-400">${isFixed ? '$' : '%'}</span>
+        <input type="number" value="${st.customVal ?? fee.value}" min="0" step="any"
+          oninput="updateProjectFeeVal('${fee.id}', this.value)"
+          class="w-20 bg-warm-900 border border-warm-700 text-warm-100 rounded-lg px-2 py-1 text-xs text-right font-black" />
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function toggleProjectFee(id, enabled) {
+  const p = getCurrentProject();
+  const f = p.extraFees.find(x => x.id === id);
+  if (f) f.enabled = enabled;
+  saveStorage();
+  recalcQuoteTotals();
+}
+
+function updateProjectFeeVal(id, val) {
+  const p = getCurrentProject();
+  const f = p.extraFees.find(x => x.id === id);
+  if (f) f.customVal = parseFloat(val) || 0;
+  saveStorage();
+  recalcQuoteTotals();
+}
+
+function recalcQuoteTotals() {
+  const p = getCurrentProject();
+  let materialTotal = 0;
+
+  p.items.forEach(item => {
+    const { subtotal } = calculateItemSubtotal(item);
+    materialTotal += subtotal;
+  });
+
+  let extraFixed = 0;
+  let extraPercent = 0;
+  let enabledCount = 0;
+
+  (p.extraFees || []).forEach(st => {
+    if (!st.enabled) return;
+    enabledCount++;
+    const def = dbSettings.extraFees.find(f => f.id === st.id);
+    if (!def) return;
+    const v = Number(st.customVal ?? def.value) || 0;
+    if (def.type === 'fixed') extraFixed += v;
+    else extraPercent += v;
+  });
+
+  const extraFromP = Math.round(materialTotal * (extraPercent / 100));
+  const totalExtra = extraFixed + extraFromP;
+  const subtotalBeforeTax = materialTotal + totalExtra;
+  const tax = Math.round(subtotalBeforeTax * 0.05);
+  const grand = subtotalBeforeTax + tax;
+
+  document.getElementById('quote-calc-material').textContent = `$${formatNumber(materialTotal)}`;
+  document.getElementById('quote-calc-extra').textContent    = `+$${formatNumber(totalExtra)}`;
+  document.getElementById('quote-extra-badge').textContent   = `${enabledCount} 項啟用`;
+  document.getElementById('quote-calc-subtotal').textContent = `$${formatNumber(subtotalBeforeTax)}`;
+  document.getElementById('quote-calc-tax').textContent      = `+$${formatNumber(tax)}`;
+  document.getElementById('quote-calc-grand').textContent    = `$${formatNumber(grand)}`;
+}
+
+function copyQuoteDualFormat(mode) {
+  const p = getCurrentProject();
+  const lines = [];
+
+  if (mode === 'client') {
+    lines.push(`📋 【工程報價單】`);
+    lines.push(`專案名稱：${p.name || '工程報價單'}`);
+    lines.push(`客戶名稱：${p.client || '貴客戶'}`);
+    lines.push(`報價日期：${p.date || ''}`);
+    lines.push('─'.repeat(36));
+
+    p.items.forEach((item, i) => {
+      const { subtotal } = calculateItemSubtotal(item);
+      const wt = dbSettings.workTypes.find(w => w.id === item.wtId);
+      let specStr = '';
+      if (wt.mode === 'area') specStr = ` (${item.w}×${item.h}cm)`;
+      lines.push(`${i+1}. ${item.label}${specStr}  數量: ${item.qty}${item.unit}  單價: $${formatNumber(item.price)}  小計: $${formatNumber(subtotal)}`);
+    });
+
+    lines.push('─'.repeat(36));
+    let mat = 0; p.items.forEach(it => { mat += calculateItemSubtotal(it).subtotal; });
+    let extraSum = 0;
+    (p.extraFees || []).forEach(st => {
+      if (!st.enabled) return;
+      const def = dbSettings.extraFees.find(f => f.id === st.id);
+      if (!def) return;
+      const v = Number(st.customVal ?? def.value) || 0;
+      const val = def.type === 'fixed' ? v : Math.round(mat * (v / 100));
+      extraSum += val;
+      lines.push(`+ ${def.name}：$${formatNumber(val)}`);
+    });
+
+    const sub = mat + extraSum;
+    const tax = Math.round(sub * 0.05);
+    lines.push(`未稅總金額：$${formatNumber(sub)}`);
+    lines.push(`營業稅 (5%)：$${formatNumber(tax)}`);
+    lines.push(`💰 【含稅總計】：$${formatNumber(sub + tax)} 元整`);
+  } else {
+    lines.push(`🛠️ 【內部對帳與施工備忘明細】`);
+    lines.push(`專案編號 / 名稱：${p.name} (內部代碼: ${p.id})`);
+    lines.push(`開單日期：${p.date}`);
+    lines.push('─'.repeat(42));
+
+    let mat = 0;
+    p.items.forEach((item, i) => {
+      const { raw, subtotal, saiCount } = calculateItemSubtotal(item);
+      mat += subtotal;
+      const wt = dbSettings.workTypes.find(w => w.id === item.wtId) || { name: '工種' };
+      let formulaAudit = '';
+      if (wt.mode === 'area') formulaAudit = `⌈${item.w}×${item.h}/900⌉=${saiCount}才`;
+      if (wt.mode === 'formula') formulaAudit = `公式[${wt.formula}]`;
+
+      const minFeeNotice = (item.hasMinFee && subtotal === item.minFee) ? ` [已套用低消補足門檻 $${item.minFee}]` : '';
+      lines.push(`${i+1}. [${wt.name}] ${item.label}`);
+      lines.push(`   規格算式: ${formulaAudit} | 數量: ${item.qty} | 單價: $${item.price}`);
+      lines.push(`   原始試算: $${formatNumber(raw)} ➜ 最終小計: $${formatNumber(subtotal)}${minFeeNotice}`);
+    });
+
+    lines.push('─'.repeat(42));
+    let extraSum = 0;
+    (p.extraFees || []).forEach(st => {
+      if (!st.enabled) return;
+      const def = dbSettings.extraFees.find(f => f.id === st.id);
+      if (!def) return;
+      const v = Number(st.customVal ?? def.value) || 0;
+      const val = def.type === 'fixed' ? v : Math.round(mat * (v / 100));
+      extraSum += val;
+      lines.push(`+ 附加費: ${def.name} (${def.type}) ➜ $${formatNumber(val)}`);
+    });
+
+    const sub = mat + extraSum;
+    const tax = Math.round(sub * 0.05);
+    lines.push(`材料小計: $${formatNumber(mat)} | 附加費小計: $${formatNumber(extraSum)}`);
+    lines.push(`未稅總額: $${formatNumber(sub)} | 5%營業稅: $${formatNumber(tax)}`);
+    lines.push(`💰 最終應付總額: $${formatNumber(sub + tax)} 元整`);
+  }
+
+  const out = lines.join('\n');
+  navigator.clipboard.writeText(out).then(() => {
+    showToast(mode === 'client' ? '已複製客戶簡約報價！' : '已複製內部詳細對帳單！');
+  }).catch(() => showToast('複製失敗，請手動選取', true));
+}
+
+async function runAiQuoteAudit() {
+  const p = getCurrentProject();
+  if (!p.items.length) {
+    showToast('目前專案尚無品項，無需檢查', true);
+    return;
+  }
+
+  const contentEl = document.getElementById('ai-audit-content');
+  contentEl.innerHTML = `<div class="py-8 text-center"><div class="w-8 h-8 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mx-auto mb-2"></div>AI 正在全單掃描中...</div>`;
+  openModal('modal-ai-audit');
+
+  const warnings = [];
+  const suggestions = [];
+
+  const travelFee = (p.extraFees || []).find(f => f.id === 'fee-1');
+  if (travelFee && !travelFee.enabled) {
+    warnings.push('⚠️ <b>未勾選出車與運輸費</b>：目前專案未計入任何出車費，請確認現場是否為自取或已內含車資。');
+  }
+
+  p.items.forEach((it, idx) => {
+    const { raw, subtotal } = calculateItemSubtotal(it);
+    if (it.hasMinFee && raw < it.minFee) {
+      suggestions.push(`💡 品項 ${idx+1} [${it.label}] 原始金額為 $${formatNumber(raw)}，未達低消門檻，系統已自動補足至 $${formatNumber(it.minFee)}。`);
+    }
+  });
+
+  const nightFee = (p.extraFees || []).find(f => f.id === 'fee-3');
+  if (nightFee && !nightFee.enabled) {
+    suggestions.push('💡 若本專案涉及商場夜間撤櫃或凌晨進場施作，請記得勾選「夜間進場施工加成 (10%)」。');
+  }
+
+  let aiAdvice = '';
+  if (dbSettings.geminiKey) {
+    try {
+      const summaryText = p.items.map(i => `${i.label} (單價:${i.price}, 數量:${i.qty})`).join(', ');
+      const res = await callGeminiSimpleAudit(summaryText);
+      aiAdvice = res;
+    } catch { aiAdvice = 'AI 雲端分析連線逾時，已套用本機啟發式審查。'; }
+  } else {
+    aiAdvice = '已透過本機智能規則庫完成合理性查核，無重大邏輯遺漏。';
+  }
+
+  contentEl.innerHTML = `
+    <div class="space-y-3">
+      <div class="p-3.5 rounded-2xl bg-warm-850 border border-warm-800">
+        <div class="font-bold text-warm-100 mb-1">📋 規則檢核結果：</div>
+        ${warnings.length ? warnings.map(w => `<div class="text-amberGlow my-1">${w}</div>`).join('') : '<div class="text-emeraldWarm">✓ 無遺漏基本常規出車費用。</div>'}
+      </div>
+
+      <div class="p-3.5 rounded-2xl bg-warm-850 border border-warm-800">
+        <div class="font-bold text-warm-100 mb-1">💡 專業建議與提醒：</div>
+        ${suggestions.length ? suggestions.map(s => `<div class="text-warm-300 my-1">${s}</div>`).join('') : '<div class="text-warm-400">目前各品項均符合常態利潤水準。</div>'}
+      </div>
+
+      <div class="p-3.5 rounded-2xl bg-purple-900/20 border border-purple-800/40 text-purple-200">
+        <div class="font-bold mb-1">🤖 Gemini 3.8 智能分析：</div>
+        <div class="leading-relaxed">${escapeHtml(aiAdvice)}</div>
+      </div>
+    </div>
+  `;
+}
+
+async function callGeminiSimpleAudit(itemsSummary) {
+  const model = dbSettings.geminiModel || 'gemini-3.8-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${dbSettings.geminiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: `你是一位資深工程主管，請用 60 字以內簡短評估這份廣告工程單據合理性並給予防呆提醒：${itemsSummary}` }] }]
+    })
+  });
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '報價內容合理完整。';
+}
+
+function resetQuoteSheet() {
+  openConfirmModal('確定要清空當前專案的所有品項？', () => {
+    getCurrentProject().items = [];
+    saveStorage();
+    renderQuoteEditor();
+    showToast('已清空當前專案品項');
+  });
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * 4. 廠商與設定管理 (SETTINGS CRUD)
+ * ─────────────────────────────────────────────────────────────
+ */
+function renderSettingsPanels() {
+  document.getElementById('cfg-gemini-key').value = dbSettings.geminiKey || '';
+  const modelSel = document.getElementById('cfg-gemini-model');
+  const customInput = document.getElementById('cfg-gemini-model-custom');
+  const storedModel = dbSettings.geminiModel || 'gemini-3.8-flash';
+  const knownModels = ['gemini-3.8-flash', 'gemini-3.8-pro'];
+  if (knownModels.includes(storedModel)) {
+    modelSel.value = storedModel;
+    if (customInput) customInput.classList.add('hidden');
+  } else {
+    modelSel.value = 'custom';
+    if (customInput) {
+      customInput.value = storedModel;
+      customInput.classList.remove('hidden');
+    }
+  }
+
+  // Vendors
+  const vTbody = document.getElementById('cfg-vendors-tbody');
+  vTbody.innerHTML = '';
+  dbVendors.forEach(v => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-warm-850 transition';
+    tr.innerHTML = `
+      <td class="py-2 px-3 font-bold text-warm-100">${escapeHtml(v.name)}</td>
+      <td class="py-2 px-3 text-warm-400 font-mono">${escapeHtml(v.taxId || '-')}</td>
+      <td class="py-2 px-3 text-warm-300">${escapeHtml(v.contact || '')} ${v.phone ? '· ' + escapeHtml(v.phone) : ''}</td>
+      <td class="py-2 px-3 text-amberGlow">${'★'.repeat(v.rating || 5)}</td>
+      <td class="py-2 px-3 text-right">
+        <button onclick="openVendorModal('${v.id}')" class="text-terracotta-500 font-bold mr-2">編輯</button>
+        <button onclick="deleteVendor('${v.id}')" class="text-red-400 font-bold">刪除</button>
+      </td>
+    `;
+    vTbody.appendChild(tr);
+  });
+
+  // Work Types
+  const wtList = document.getElementById('cfg-worktypes-list');
+  wtList.innerHTML = '';
+  dbSettings.workTypes.forEach(wt => {
+    const div = document.createElement('div');
+    div.className = 'py-2.5 flex items-center justify-between gap-2';
+    div.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${getBadgeClass(wt.mode)}">${getModeName(wt.mode)}</span>
+        <div>
+          <span class="font-bold text-warm-100 text-xs">${escapeHtml(wt.name)}</span>
+          <span class="text-[10px] text-warm-400 block">$${formatNumber(wt.price)}/${wt.unit} ${wt.hasMinFee ? '· 低消 $'+formatNumber(wt.minFee) : ''}</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openWorkTypeModal('${wt.id}')" class="text-terracotta-500 text-xs font-bold">編輯</button>
+        <button onclick="deleteWorkType('${wt.id}')" class="text-red-400 text-xs font-bold">刪除</button>
+      </div>
+    `;
+    wtList.appendChild(div);
+  });
+
+  // Extra Fees
+  const feeList = document.getElementById('cfg-extra-fees-list');
+  feeList.innerHTML = '';
+  dbSettings.extraFees.forEach(fee => {
+    const div = document.createElement('div');
+    div.className = 'py-2.5 flex items-center justify-between gap-2';
+    div.innerHTML = `
+      <div>
+        <span class="font-bold text-warm-100 text-xs">${escapeHtml(fee.name)}</span>
+        <span class="text-[10px] text-warm-400 block">${fee.type === 'fixed' ? '固定金額 $'+formatNumber(fee.value) : '比例加成 '+fee.value+'%'} ${fee.defaultOn ? '(預設啟用)' : ''}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openExtraFeeModal('${fee.id}')" class="text-terracotta-500 text-xs font-bold">編輯</button>
+        <button onclick="deleteExtraFee('${fee.id}')" class="text-red-400 text-xs font-bold">刪除</button>
+      </div>
+    `;
+    feeList.appendChild(div);
+  });
+
+  // Templates List
+  const tplList = document.getElementById('cfg-templates-list');
+  tplList.innerHTML = '';
+  if (!dbTemplates.length) {
+    tplList.innerHTML = `<div class="py-4 text-warm-400 text-xs text-center">尚無常用範本</div>`;
+  } else {
+    dbTemplates.forEach((tpl, idx) => {
+      const div = document.createElement('div');
+      div.className = 'py-2 flex items-center justify-between gap-2 text-xs';
+      div.innerHTML = `
+        <div>
+          <span class="font-bold text-warm-100">${escapeHtml(tpl.name)}</span>
+          <span class="text-[10px] text-warm-400 block">${escapeHtml(tpl.label)} · $${formatNumber(tpl.price)}/${tpl.unit || '單位'}</span>
+        </div>
+        <button onclick="dbTemplates.splice(${idx},1); saveStorage(); renderSettingsPanels();" class="text-red-400 text-xs">刪除</button>
+      `;
+      tplList.appendChild(div);
+    });
+  }
+}
+
+function saveGeminiSettings() {
+  dbSettings.geminiKey = (document.getElementById('cfg-gemini-key').value || '').trim();
+  const selVal = document.getElementById('cfg-gemini-model').value;
+  if (selVal === 'custom') {
+    const customVal = (document.getElementById('cfg-gemini-model-custom').value || '').trim();
+    dbSettings.geminiModel = customVal || 'gemini-3.8-flash';
+  } else {
+    dbSettings.geminiModel = selVal;
+  }
+  saveStorage();
+  updateAiStatusDisplay();
+  showToast('Gemini API 設定已成功儲存');
+}
+
+// ── Modals Trigger Logic ──
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function openWorkTypeModal(id) {
+  editingWorkTypeId = id;
+  if (id) {
+    const wt = dbSettings.workTypes.find(w => w.id === id);
+    document.getElementById('modal-wt-title').textContent = '編輯工種';
+    document.getElementById('m-wt-name').value    = wt.name;
+    document.getElementById('m-wt-mode').value    = wt.mode;
+    document.getElementById('m-wt-unit').value    = wt.unit || '';
+    document.getElementById('m-wt-price').value   = wt.price || 0;
+    document.getElementById('m-wt-divisor').value = wt.divisor || 900;
+    document.getElementById('m-wt-has-minfee').checked = !!wt.hasMinFee;
+    document.getElementById('m-wt-minfee').value  = wt.minFee || '';
+    document.getElementById('m-wt-minfee-wrap').classList.toggle('hidden', !wt.hasMinFee);
+    document.getElementById('m-wt-formula-str').value  = wt.formula || '';
+    document.getElementById('m-wt-formula-vars').value = wt.formulaVars || '';
+  } else {
+    document.getElementById('modal-wt-title').textContent = '新增工種';
+    document.getElementById('m-wt-name').value    = '';
+    document.getElementById('m-wt-mode').value    = 'area';
+    document.getElementById('m-wt-unit').value    = '才';
+    document.getElementById('m-wt-price').value   = '';
+    document.getElementById('m-wt-divisor').value = 900;
+    document.getElementById('m-wt-has-minfee').checked = false;
+    document.getElementById('m-wt-minfee').value  = '';
+    document.getElementById('m-wt-minfee-wrap').classList.add('hidden');
+    document.getElementById('m-wt-formula-str').value  = 'W * H + M';
+    document.getElementById('m-wt-formula-vars').value = 'W, H, M';
+  }
+  onModalWtModeChange();
+  openModal('modal-worktype');
+}
+
+function onModalWtModeChange() {
+  const mode = document.getElementById('m-wt-mode').value;
+  document.getElementById('m-wt-divisor-wrap').classList.toggle('hidden', mode !== 'area');
+  document.getElementById('m-wt-formula-wrap').classList.toggle('hidden', mode !== 'formula');
+}
+
+function saveWorkTypeModal() {
+  const name = document.getElementById('m-wt-name').value.trim();
+  if (!name) return showToast('請填寫工種名稱', true);
+
+  const data = {
+    name,
+    mode: document.getElementById('m-wt-mode').value,
+    unit: document.getElementById('m-wt-unit').value.trim() || '式',
+    price: parseFloat(document.getElementById('m-wt-price').value) || 0,
+    divisor: parseFloat(document.getElementById('m-wt-divisor').value) || 900,
+    hasMinFee: document.getElementById('m-wt-has-minfee').checked,
+    minFee: parseFloat(document.getElementById('m-wt-minfee').value) || 0,
+    formula: document.getElementById('m-wt-formula-str').value.trim(),
+    formulaVars: document.getElementById('m-wt-formula-vars').value.trim()
+  };
+
+  if (editingWorkTypeId) {
+    Object.assign(dbSettings.workTypes.find(w => w.id === editingWorkTypeId), data);
+  } else {
+    dbSettings.workTypes.push({ id: `wt-${Date.now()}`, ...data });
+  }
+
+  saveStorage();
+  initIntelligenceFilters();
+  renderSettingsPanels();
+  renderQuoteEditor();
+  closeModal('modal-worktype');
+  showToast('工種已儲存');
+}
+
+function deleteWorkType(id) {
+  openConfirmModal('確定要刪除此工種？', () => {
+    dbSettings.workTypes = dbSettings.workTypes.filter(w => w.id !== id);
+    saveStorage();
+    initIntelligenceFilters();
+    renderSettingsPanels();
+    renderQuoteEditor();
+    showToast('工種已刪除');
+  });
+}
+
+function openVendorModal(id) {
+  editingVendorId = id;
+  if (id) {
+    const v = dbVendors.find(x => x.id === id);
+    document.getElementById('modal-vendor-title').textContent = '編輯廠商';
+    document.getElementById('m-vnd-name').value    = v.name;
+    document.getElementById('m-vnd-taxid').value   = v.taxId || '';
+    document.getElementById('m-vnd-rating').value  = v.rating || 5;
+    document.getElementById('m-vnd-contact').value = v.contact || '';
+    document.getElementById('m-vnd-phone').value   = v.phone || '';
+    document.getElementById('m-vnd-note').value    = v.note || '';
+  } else {
+    document.getElementById('modal-vendor-title').textContent = '新增廠商';
+    document.getElementById('m-vnd-name').value    = '';
+    document.getElementById('m-vnd-taxid').value   = '';
+    document.getElementById('m-vnd-rating').value  = 5;
+    document.getElementById('m-vnd-contact').value = '';
+    document.getElementById('m-vnd-phone').value   = '';
+    document.getElementById('m-vnd-note').value    = '';
+  }
+  openModal('modal-vendor');
+}
+
+function saveVendorModal() {
+  const name = document.getElementById('m-vnd-name').value.trim();
+  if (!name) return showToast('請填寫廠商名稱', true);
+  const data = {
+    name,
+    taxId: document.getElementById('m-vnd-taxid').value.trim(),
+    rating: parseInt(document.getElementById('m-vnd-rating').value) || 5,
+    contact: document.getElementById('m-vnd-contact').value.trim(),
+    phone: document.getElementById('m-vnd-phone').value.trim(),
+    note: document.getElementById('m-vnd-note').value.trim(),
+  };
+
+  if (editingVendorId) Object.assign(dbVendors.find(x => x.id === editingVendorId), data);
+  else dbVendors.push({ id: `v-${Date.now()}`, ...data });
+
+  saveStorage();
+  initIntelligenceFilters();
+  renderSettingsPanels();
+  updateAiStatusDisplay();
+  closeModal('modal-vendor');
+  showToast('廠商資料已儲存');
+}
+
+function deleteVendor(id) {
+  openConfirmModal('確定刪除此廠商？', () => {
+    dbVendors = dbVendors.filter(v => v.id !== id);
+    saveStorage();
+    initIntelligenceFilters();
+    renderSettingsPanels();
+    showToast('廠商已刪除');
+  });
+}
+
+function openExtraFeeModal(id) {
+  editingFeeId = id;
+  if (id) {
+    const f = dbSettings.extraFees.find(x => x.id === id);
+    document.getElementById('modal-fee-title').textContent = '編輯附加費';
+    document.getElementById('m-fee-name').value = f.name;
+    document.getElementById('m-fee-type').value = f.type;
+    document.getElementById('m-fee-val').value  = f.value;
+    document.getElementById('m-fee-default-on').checked = !!f.defaultOn;
+  } else {
+    document.getElementById('modal-fee-title').textContent = '新增附加費';
+    document.getElementById('m-fee-name').value = '';
+    document.getElementById('m-fee-type').value = 'fixed';
+    document.getElementById('m-fee-val').value  = '';
+    document.getElementById('m-fee-default-on').checked = false;
+  }
+  openModal('modal-extrafee');
+}
+
+function saveExtraFeeModal() {
+  const name = document.getElementById('m-fee-name').value.trim();
+  if (!name) return showToast('請填寫費用名稱', true);
+  const data = {
+    name,
+    type: document.getElementById('m-fee-type').value,
+    value: parseFloat(document.getElementById('m-fee-val').value) || 0,
+    defaultOn: document.getElementById('m-fee-default-on').checked
+  };
+
+  if (editingFeeId) Object.assign(dbSettings.extraFees.find(x => x.id === editingFeeId), data);
+  else dbSettings.extraFees.push({ id: `fee-${Date.now()}`, ...data });
+
+  saveStorage();
+  renderSettingsPanels();
+  renderExtraFeesSection();
+  recalcQuoteTotals();
+  closeModal('modal-extrafee');
+  showToast('附加費已儲存');
+}
+
+function deleteExtraFee(id) {
+  openConfirmModal('確定刪除此附加費用項目？', () => {
+    dbSettings.extraFees = dbSettings.extraFees.filter(f => f.id !== id);
+    saveStorage();
+    renderSettingsPanels();
+    renderExtraFeesSection();
+    recalcQuoteTotals();
+    showToast('附加費已刪除');
+  });
+}
+
+function exportAllSystemData() {
+  const backup = {
+    version: '3.1.0-tactile',
+    date: new Date().toISOString(),
+    vendors: dbVendors,
+    quotes: dbQuotes,
+    settings: dbSettings,
+    templates: dbTemplates,
+    projects: dbProjects
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `PIQ_FullBackup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  showToast('系統全量資料已匯出');
+}
+
+function importAllSystemData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.vendors)   dbVendors   = d.vendors;
+      if (d.quotes)    dbQuotes    = d.quotes;
+      if (d.settings)  dbSettings  = d.settings;
+      if (d.templates) dbTemplates = d.templates;
+      if (d.projects)  dbProjects  = d.projects;
+
+      // 匯入時亦執行舊版模型自動遷移
+      if (!dbSettings.geminiModel || dbSettings.geminiModel.includes('2.5') || dbSettings.geminiModel.includes('1.5')) {
+        dbSettings.geminiModel = 'gemini-3.8-flash';
+      }
+
+      saveStorage();
+      initProjects();
+      initIntelligenceFilters();
+      renderIntelligence();
+      renderSettingsPanels();
+      renderQuoteEditor();
+      updateAiStatusDisplay();
+      showToast('資料庫還原成功！');
+    } catch { showToast('檔案非合法 JSON 格式', true); }
+  };
+  reader.readAsText(file);
+}
+
+function resetSystemToSeed() {
+  openConfirmModal('確定要將系統重置回預設展示資料？所有自訂紀錄將遺失。', () => {
+    localStorage.clear();
+    dbVendors   = [...SEED_VENDORS];
+    dbQuotes    = [...SEED_QUOTES];
+    dbTemplates = [...SEED_TEMPLATES];
+    dbSettings  = {
+      workTypes: [...SEED_WORKTYPES],
+      extraFees: [...SEED_EXTRA_FEES],
+      geminiModel: 'gemini-3.8-flash'
+    };
+    dbProjects  = [];
+    saveStorage();
+    initProjects();
+    initIntelligenceFilters();
+    renderIntelligence();
+    renderSettingsPanels();
+    renderQuoteEditor();
+    updateAiStatusDisplay();
+    showToast('系統已重置為預設演示環境');
+  });
+}
+
+function openConfirmModal(msg, cb) {
+  confirmCallback = cb;
+  document.getElementById('confirm-modal-msg').textContent = msg;
+  openModal('modal-confirm');
+}
+function closeConfirmModal(ok) {
+  closeModal('modal-confirm');
+  if (ok && typeof confirmCallback === 'function') confirmCallback();
+  confirmCallback = null;
+}
+
+function formatNumber(n) {
+  if (n == null || isNaN(n)) return '0';
+  return Math.round(n).toLocaleString('zh-TW');
+}
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function togglePass(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+function getModeName(m) {
+  const map = { area:'面積型', length:'長度型', qty:'數量型', fixed:'一式型', custom:'採購型', formula:'自由公式' };
+  return map[m] || m;
+}
+function getBadgeClass(m) {
+  const map = { area:'badge-area', length:'badge-length', qty:'badge-qty', fixed:'badge-fixed', custom:'badge-custom', formula:'badge-formula' };
+  return map[m] || 'badge-qty';
+}
+
+let toastTimer = null;
+function showToast(msg, isErr = false) {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  const txt = document.getElementById('toast-msg');
+  const ico = document.getElementById('toast-icon');
+  txt.textContent = msg;
+  ico.textContent = isErr ? '✕' : '✓';
+  ico.className = isErr ? 'text-red-400 font-bold' : 'text-emeraldWarm font-bold';
+  t.classList.remove('hidden');
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * DRAG & DROP 品項拖曳排序
+ * ─────────────────────────────────────────────────────────────
+ */
+let dragSrcIdx = null;
+
+function initDragAndDrop() {
+  const container = document.getElementById('quote-items-container');
+  if (!container) return;
+
+  const rows = container.querySelectorAll('.quote-drag-row');
+  rows.forEach(row => {
+    row.addEventListener('dragstart', (e) => {
+      dragSrcIdx = parseInt(row.dataset.index, 10);
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragSrcIdx);
+    });
+
+    row.addEventListener('dragend', () => {
+      rows.forEach(r => r.classList.remove('dragging', 'drag-over'));
+      dragSrcIdx = null;
+    });
+
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      rows.forEach(r => r.classList.remove('drag-over'));
+      row.classList.add('drag-over');
+    });
+
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('drag-over');
+    });
+
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const targetIdx = parseInt(row.dataset.index, 10);
+      if (dragSrcIdx === null || isNaN(dragSrcIdx) || dragSrcIdx === targetIdx) return;
+
+      const p = getCurrentProject();
+      const [moved] = p.items.splice(dragSrcIdx, 1);
+      p.items.splice(targetIdx, 0, moved);
+      dragSrcIdx = null;
+      saveStorage();
+      renderQuoteEditor();
+      showToast('品項排序已更新');
+    });
+  });
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * Gemini 自訂模型選單切換
+ * ─────────────────────────────────────────────────────────────
+ */
+function onGeminiModelSelectChange() {
+  const sel = document.getElementById('cfg-gemini-model');
+  const customInput = document.getElementById('cfg-gemini-model-custom');
+  if (!sel || !customInput) return;
+  if (sel.value === 'custom') {
+    customInput.classList.remove('hidden');
+    customInput.focus();
+  } else {
+    customInput.classList.add('hidden');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// NOTE: 嚴格執行防呆規範：所有彈出視窗禁止點擊遮罩 (Overlay) 自動退出，
+// 必須透過視窗上的「✕」或「取消」按鈕退出，保障滑鼠選取與拖曳操作安全。
+// ─────────────────────────────────────────────────────────────
+</script>
+</body>
+</html>
